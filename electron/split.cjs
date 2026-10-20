@@ -151,15 +151,15 @@ class SplitService {
               throw Error('分片文件损坏：'+name);
             parts.push({name,path:path.join(dir,name),sizeBytes:stat.size});
           }
-          const tooLarge=parts.some(x=>x.sizeBytes>maxSizeBytes);
+          const tooLarge=parts.some(x=>x.sizeBytes>maxSizeBytes)||parts.length<2;
           if(tooLarge){
             await fs.rm(attemptDir,{recursive:true,force:true});
             if(attempt===MAX_ATTEMPTS||segmentSeconds<0.2)
-              throw Error('某些关键帧间隔过长，无法在不重新编码的情况下满足大小上限。原始视频未修改。');
+              throw Error('关键帧间隔过长，无法在不重新编码的情况下生成至少两个且每个均不超限的分片。原始视频未修改。');
             segmentSeconds/=2;
             lastProgress=0;
             send({kind:'retry',progressPercent:0,attempt,partsWritten:0,
-              message:'分片仍超出上限，正在缩短切分时间重试'});
+              message:'分片超限或仅生成一个文件，正在缩短切分时间重试'});
             continue;
           }
           const before=await fs.stat(input);
