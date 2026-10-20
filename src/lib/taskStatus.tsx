@@ -7,7 +7,7 @@ const IDLE: TaskStatus = { running: false, kind: null, cancelling: false };
 const TaskContext = createContext<TaskStatus>(IDLE);
 
 export function taskLabel(kind: string | null) {
-  return ({ wash: "文件洗码", restore: "文件恢复", scan: "文件扫描", video: "视频截图", "video-probe": "视频检查", history: "历史整理" } as Record<string, string>)[kind ?? ""] ?? "文件任务";
+  return ({ wash: "文件洗码", restore: "文件恢复", scan: "文件扫描", video: "视频截图", "video-split": "视频切分", "video-probe": "视频检查", history: "历史整理" } as Record<string, string>)[kind ?? ""] ?? "文件任务";
 }
 
 export function TaskStatusProvider({ children }: { children: ReactNode }) {

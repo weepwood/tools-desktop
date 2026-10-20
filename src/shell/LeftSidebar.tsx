@@ -1,10 +1,10 @@
-import { ClockIcon, ComposeIcon, ImageIcon } from "../lib/icons";
+import { ClockIcon, ComposeIcon, ImageIcon, SplitIcon } from "../lib/icons";
 import { AccountArea } from "./AccountArea";
 import { ResizeHandle } from "./ResizeHandle";
 import { PANEL_LIMITS, type PeekPhase } from "./AppShell";
 import "./LeftSidebar.css";
 
-export type XimaSection = "wash" | "history" | "video";
+export type XimaSection = "wash" | "history" | "video" | "split";
 
 interface LeftSidebarProps {
   activeSection: XimaSection;
@@ -68,6 +68,10 @@ export function LeftSidebar({
           <button className="sidebar-item" data-active={activeSection === "video"} onClick={() => onSelectSection("video")}>
             <ImageIcon className="sidebar-item-icon" />
             <span className="sidebar-item-label">视频截图</span>
+          </button>
+          <button className="sidebar-item" data-active={activeSection === "split"} onClick={() => onSelectSection("split")}>
+            <SplitIcon className="sidebar-item-icon" />
+            <span className="sidebar-item-label">视频按大小切分</span>
           </button>
           <button className="sidebar-item" data-active={activeSection === "history"} onClick={() => onSelectSection("history")}>
             <ClockIcon className="sidebar-item-icon" />

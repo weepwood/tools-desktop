@@ -23,7 +23,7 @@ function wash(r){
 }
 const emptyCommands=new Set(['window_minimize','window_toggle_maximize','window_close',
   'is_autostart_enabled','task_running','task_status','cancel_task',
-  'list_history','clear_history','storage_diagnostics','video_tool_status','list_video_tasks']);
+  'list_history','clear_history','storage_diagnostics','video_tool_status','list_video_tasks','list_split_tasks']);
 function validateCommand(command,args={}){
   check(typeof command==='string'&&command.length<=80,'命令');
   check(object(args),'参数对象');
@@ -87,6 +87,14 @@ function validateCommand(command,args={}){
       check(uuid(args.taskId)&&Number.isSafeInteger(args.page)&&args.page>=0&&
         Number.isSafeInteger(args.pageSize)&&args.pageSize>=1&&args.pageSize<=24,'截图分页');return;
     case 'open_video_output':check(uuid(args.taskId),'截图任务编号');return;
+    case 'open_split_output':check(uuid(args.taskId),'分片任务编号');return;
+    case 'split_video':{
+      const r=args.request;
+      check(object(r)&&absolute(r.videoPath)&&
+        typeof r.maxSizeGb==='number'&&Number.isFinite(r.maxSizeGb)&&
+        r.maxSizeGb>=0.00001&&r.maxSizeGb<=10000&&
+        (r.outputParent===null||absolute(r.outputParent)),'视频分片参数');return;
+    }
     default:throw Error('未知 IPC 命令');
   }
 }
