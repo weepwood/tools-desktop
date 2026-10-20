@@ -3,22 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: xima:; connect-src 'self' ws://127.0.0.1:1420; object-src 'none'; base-uri 'self'; form-action 'none'; frame-src 'none';" />
     <title>XIMA</title>
-    <script>
-      // Apply the persisted theme before first paint to avoid a flash.
-      (function () {
-        var theme = "system";
-        try {
-          theme = localStorage.getItem("app:theme") || "system";
-        } catch (e) {}
-        if (theme === "system") {
-          theme = window.matchMedia("(prefers-color-scheme: dark)").matches
-            ? "dark"
-            : "light";
-        }
-        document.documentElement.dataset.theme = theme;
-      })();
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
 
   <body>
