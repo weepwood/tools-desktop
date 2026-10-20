@@ -11,7 +11,7 @@ const {SplitService}=require('../electron/split.cjs');
 test('real FFmpeg: size-capped video split retains intact original and produces playable pieces',async t=>{
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'xima-split-smoke-'));
   t.after(()=>fs.rm(root,{recursive:true,force:true}));
-  const input=path.join(root,'测试 100% clip.mp4');
+  const input=path.join(root,'测试 100%04d clip.mp4');
   const bins=await resolveBinaries();
   await execBinary(bins.ffmpeg,[
     '-hide_banner','-loglevel','error',

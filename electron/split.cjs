@@ -118,8 +118,9 @@ class SplitService {
         record.attempts=attempt;
         const attemptDir=path.join(dir,'attempt-'+String(attempt).padStart(2,'0'));
         await fs.mkdir(attemptDir);
-        const pattern=path.join(attemptDir,'part_%04d.'+format.extension)
-          .replace(/%/g,'%%').replace('%%04d','%04d');
+        // Escape percent signs in the *directory* only. Replacing the first
+        // "%%04d" in a joined string would corrupt a directory named "%04d".
+        const pattern=path.join(attemptDir.replace(/%/g,'%%'),'part_%04d.'+format.extension);
         const args=['-hide_banner','-nostdin','-y','-v','warning','-stats_period','0.25',
           '-progress','pipe:1','-i',input,'-map','0','-c','copy',
           '-f','segment','-segment_format',format.muxer,
