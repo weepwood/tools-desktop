@@ -27,14 +27,35 @@ class History {
       const id=item.name.slice(0,-6);
       if(sessions.some(x=>x.id===id))continue;
       const data=await fs.readFile(path.join(this.journals,item.name),'utf8');
-      let session=null,files=new Map(),complete=false;
-      for(const line of data.split('\n').filter(Boolean)){
-        const event=JSON.parse(line);
+      let session=null,files=new Map(),complete=false,truncated=false;
+      const lines=data.split('\n');
+      for(let index=0;index<lines.length;index++){
+        const line=lines[index];
+        if(!line)continue;
+        let event;
+        try{event=JSON.parse(line);}
+        catch(error){
+          // Power loss can leave the last JSONL record partially written.
+          // Preserve all earlier synced entries; never silently ignore
+          // corruption in the middle of a journal.
+          if(index===lines.length-1&&!data.endsWith('\n')){truncated=true;break;}
+          throw Error('任务日志 '+item.name+' 第 '+(index+1)+' 行损坏：'+error.message);
+        }
         if(event.type==='start')session=event.session;
-        if(event.type==='prepared'||event.type==='completed')files.set(event.file.path,event.file);
+        if(event.type==='prepared'||event.type==='completed'){
+          if(typeof event.file?.path!=='string')throw Error('任务日志条目缺少文件路径：'+item.name);
+          files.set(event.file.path,event.file);
+        }
         if(event.type==='end') {session=event.session;complete=true;}
       }
-      if(session){session.files=[...files.values()];session.interrupted=!complete;session.taskError=complete?null:'任务异常中断，待校验条目可能需要恢复';sessions.push(session);}
+      if(session){
+        session.files=[...files.values()];
+        session.interrupted=!complete||truncated;
+        session.taskError=session.interrupted
+          ? '任务中断或日志最后一行未完整写入；记录已保留，恢复时会校验文件'
+          : null;
+        sessions.push(session);
+      }
     }
     return sessions.sort((a,b)=>b.startedAt.localeCompare(a.startedAt));
   }

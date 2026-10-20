@@ -134,3 +134,16 @@ test('scan never follows a symbolic-link file',async t=>{
   const result=await scan(request,new AbortController().signal);
   assert.equal(result.files.some(x=>x.path===linked),false);
 });
+
+test('incomplete last journal line retains synchronized prepared records',async t=>{
+  const {history,file}=await fixture(t);
+  const id='c2fd0c5e-8955-4986-b594-edba447259b6';
+  const session={id,startedAt:new Date().toISOString(),files:[],restoreRuns:[],total:1,success:0,failed:0,skipped:0,rootPath:'/',mode:'recoverable'};
+  const journal=await history.startJournal(session);
+  await journal({type:'prepared',file:{path:file,pending:true,relativePath:'sample.mp4',appendedHex:'58',status:'success'}});
+  await fs.appendFile(path.join(history.journals,id+'.jsonl'),'{"type":"completed","file":');
+  const rows=await history.load();
+  assert.equal(rows[0].interrupted,true);
+  assert.equal(rows[0].files.length,1);
+  assert.equal(rows[0].files[0].pending,true);
+});

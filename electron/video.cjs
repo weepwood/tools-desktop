@@ -28,28 +28,32 @@ function execBinary(file,args,signal,timeout=60000,onLine=()=>{},onLog=()=>{}){
   return new Promise((resolve,reject)=>{
     if(signal?.aborted)return reject(Error('任务已停止。'));
     const child=spawn(file,args,{windowsHide:true,stdio:['ignore','pipe','pipe'],shell:false});
-    let output='',err='',pending='';
+    let output='',err='',pending='',timedOut=false,settled=false;
     const limit=(s,max)=>s.length>max?s.slice(-max):s;
-    const fail=e=>{cleanup();reject(e);};
     const abort=()=>child.kill();
-    const timer=timeout?setTimeout(()=>child.kill(),timeout):null;
+    const timer=timeout?setTimeout(()=>{timedOut=true;child.kill();},timeout):null;
     const cleanup=()=>{if(timer)clearTimeout(timer);signal?.removeEventListener('abort',abort);};
+    const finish=(error,result)=>{
+      if(settled)return;
+      settled=true;cleanup();
+      if(error)reject(error);else resolve(result);
+    };
     signal?.addEventListener('abort',abort,{once:true});
-    child.on('error',fail);
+    child.on('error',error=>finish(error));
     child.stdout.on('data',chunk=>{
       const value=chunk.toString('utf8');
       output=limit(output+value,1024*1024);
-      pending+=value;
+      pending=limit(pending+value,1024*1024);
       const lines=pending.split(/\r?\n/);pending=lines.pop()||'';
       for(const line of lines)onLine(line);
     });
     child.stderr.on('data',chunk=>{err=limit(err+chunk.toString('utf8'),16384);onLog(chunk.toString('utf8'));});
-    child.on('close',(code)=>{
-      cleanup();
+    child.on('close',code=>{
       if(pending)onLine(pending);
-      if(signal?.aborted)return reject(Error('任务已停止。'));
-      if(code!==0)return reject(Error('视频工具退出代码 '+code+': '+err.slice(-2000)));
-      resolve({output,err});
+      if(signal?.aborted)return finish(Error('任务已停止。'));
+      if(timedOut)return finish(Error('视频工具执行超时，子进程已停止。'));
+      if(code!==0)return finish(Error('视频工具退出代码 '+code+': '+err.slice(-2000)));
+      finish(null,{output,err});
     });
   });
 }
