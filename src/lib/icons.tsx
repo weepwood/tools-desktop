@@ -315,3 +315,11 @@ export function ExpandIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function SplitIcon(props: IconProps) {
+  return <svg {...base(props)}>
+    <circle cx="6" cy="17.5" r="2.5" />
+    <circle cx="18" cy="17.5" r="2.5" />
+    <path d="M8 16 20 4M16 16 4 4" />
+  </svg>;
+}

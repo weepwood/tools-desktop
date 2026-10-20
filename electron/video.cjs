@@ -112,7 +112,7 @@ class Video {
     const rotation=Number(stream.side_data_list?.find(x=>x.rotation!==undefined)?.rotation??stream.tags?.rotate??0);
     if(Math.abs(rotation)%180===90)[width,height]=[height,width];
     const d=Number(parsed.format?.duration??stream.duration);
-    return {path:source,name:path.basename(source),durationSeconds:Number.isFinite(d)&&d>0?d:null,width,height};
+    return {path:source,name:path.basename(source),durationSeconds:Number.isFinite(d)&&d>0?d:null,width,height,sizeBytes:(await fs.lstat(source)).size};
   }
   async suggest(videoPath,outputParent){
     const directory=outputParent?path.resolve(outputParent):path.dirname(path.resolve(videoPath));

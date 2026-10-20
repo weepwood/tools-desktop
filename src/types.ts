@@ -19,6 +19,7 @@ export interface VideoInfo {
   durationSeconds: number | null
   width: number
   height: number
+  sizeBytes?: number
 }
 
 export interface VideoRequest {
