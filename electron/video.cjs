@@ -93,7 +93,7 @@ class Video {
     const source=path.resolve(videoPath);
     if(!await ordinaryFile(source))throw Error('视频文件不存在或不是普通文件');
     const tools=await resolveBinaries();
-    const data=await execBinary(tools.ffprobe,['-v','error','-select_streams','v:0','-show_entries','format=duration:stream=width,height,duration:stream_tags=rotate:stream_side_data=rotation','-of','json',source],signal,60000);
+    const data=await execBinary(tools.ffprobe,['-v','error','-select_streams','v:0','-show_format','-show_streams','-of','json',source],signal,60000);
     const parsed=JSON.parse(data.output);
     const stream=parsed.streams?.[0];
     if(!stream?.width||!stream?.height)throw Error('无法读取视频画面或分辨率');
