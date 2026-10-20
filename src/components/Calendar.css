@@ -1,0 +1,54 @@
+.app-calendar {
+  width: 288px;
+  padding: 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elev-3);
+  color: var(--color-text);
+}
+.app-calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.app-calendar-header strong { font-size: var(--text-base); font-weight: var(--weight-strong); }
+.app-calendar-header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--dur-2) var(--ease-standard), color var(--dur-2) var(--ease-standard);
+}
+.app-calendar-header button:hover { background: var(--color-bg-canvas); color: var(--color-text); }
+.app-calendar-header button:first-child svg { transform: rotate(180deg); }
+.app-calendar-header svg { width: 16px; height: 16px; }
+.app-calendar-weekdays,
+.app-calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; }
+.app-calendar-weekdays { margin-bottom: 4px; }
+.app-calendar-weekdays > span { display: flex; align-items: center; justify-content: center; height: 24px; color: var(--color-text-tertiary); font-size: 11px; font-weight: var(--weight-medium); }
+.app-calendar-day {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0 auto;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background var(--dur-2) var(--ease-standard), color var(--dur-2) var(--ease-standard);
+}
+.app-calendar-day:not(:disabled):hover { background: var(--color-bg-canvas); }
+.app-calendar-day.is-selected { background: var(--color-accent); color: var(--color-accent-text); font-weight: var(--weight-strong); }
+.app-calendar-day.is-today { border-color: var(--color-accent); color: var(--color-accent); font-weight: var(--weight-strong); }
+.app-calendar-day.is-selected.is-today { color: var(--color-accent-text); }
+.app-calendar-day.is-outside { color: var(--color-text-tertiary); }
+.app-calendar-day.is-disabled { color: var(--color-text-disabled); cursor: not-allowed; }

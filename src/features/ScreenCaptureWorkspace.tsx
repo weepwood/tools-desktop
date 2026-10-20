@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Button, Card, EmptyState } from "../components/ui";
+import { Calendar } from "../components/Calendar";
 import { NoticeStack, NoticeToast } from "../components/NoticeToast";
+import { NumericStepper } from "../components/NumericStepper";
+import { Select } from "../settings/controls/Select";
 import { cancelTask, exportScreenCaptureDay, getScreenCaptureFrames, lastScreenCaptureSession, listScreenCaptureDays, openScreenCaptureDay, screenCaptureDisplays, screenCaptureSupported, startScreenCapture } from "../api";
 import { fileUrl } from "../lib/electron";
 import { open } from "../lib/dialog";
@@ -14,6 +17,7 @@ type Notice = { type: "info" | "error" | "success"; text: string };
 const FPS_OPTIONS = [1, 2, 5, 10, 15, 24, 30];
 function errorText(error: unknown) { return typeof error === "string" ? error : error instanceof Error ? error.message : "操作失败，请重试。"; }
 function dateLabel(value: string) { return new Date(`${value}T00:00:00`).toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric", weekday: "long" }); }
+function dateKey(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
 function localTime(value: string) { return new Date(value).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
 function displayPath(value: string) { return value.replace(/^\\\\\?\\/, ""); }
 
@@ -46,6 +50,8 @@ export function ScreenCaptureWorkspace({ active }: { active: boolean }) {
   const foreignTask = taskStatus.running && !running && !exporting;
   const busy = running || exporting || starting || busyDialog || taskStatus.running;
   const selectedDisplay = displays.find(display => display.id === displayId);
+  const daysByDate = new Map(days.map(day => [day.date, day]));
+  const calendarDate = selectedDate ? new Date(`${selectedDate}T12:00:00`) : undefined;
 
   async function loadDays(preferred?: string) {
     const current = ++revision.current;
@@ -152,7 +158,6 @@ export function ScreenCaptureWorkspace({ active }: { active: boolean }) {
   }
 
   const pages = Math.max(1, Math.ceil((frames?.total || 0) / 24));
-  const activeStatus = live?.kind === "paused" ? "锁屏/睡眠暂停中" : running ? "正在采集" : "等待开始";
   return <div className="halo-workspace screen-capture-workspace">
     <header className="halo-page-header"><div><h1>屏幕截图</h1><p>按间隔保存屏幕画面，按日期浏览并导出缩时视频。</p></div><span className="halo-muted">本机处理 · PNG</span></header>
     <div className="screen-capture-content">
@@ -161,38 +166,45 @@ export function ScreenCaptureWorkspace({ active }: { active: boolean }) {
       {foreignTask && <div className="halo-notice info" role="status"><span>{taskLabel(taskStatus.kind)}正在运行，结束后可开始截图。</span><Button compact disabled={taskStatus.cancelling} onClick={() => void stop()}>{taskStatus.cancelling ? "正在停止…" : "停止任务"}</Button></div>}
       {notice && <NoticeStack><NoticeToast type={notice.type} message={notice.text} onDismiss={() => setNotice(null)} /></NoticeStack>}
       <div className="screen-capture-grid">
-        <aside className="screen-capture-options">
-          <Card title="采集设置" className="screen-card">
-            <div className="halo-field"><label htmlFor="screen-display">目标显示器</label>
-              <select id="screen-display" value={displayId} disabled={busy || !displays.length} onChange={event => setDisplayId(event.target.value)}>
-                {displays.length ? displays.map(display => <option key={display.id} value={display.id}>{display.name}{display.primary ? " · 主显示器" : ""} · {display.width} × {display.height}</option>) : <option value="">未检测到显示器</option>}
-              </select>
-            </div>
-            <div className="halo-field"><label htmlFor="screen-interval">截图间隔</label><div className="halo-input-unit"><input id="screen-interval" type="number" min="1" max="86400" step="1" value={interval} disabled={busy} aria-invalid={!validInterval} onChange={event => setInterval(event.target.value)} /><span>秒</span></div><small>{validInterval ? "开始后立即保存第一张截图。" : "请输入 1–86400 的整数秒。"}</small></div>
-            <div className="halo-field"><label>保存位置</label><button className="screen-folder" disabled={busy} onClick={() => void chooseOutput()}><FolderIcon aria-hidden="true" /><span>{outputRoot ? displayPath(outputRoot) : "选择本地文件夹"}</span><span>选择</span></button><small>按日期建立子文件夹，锁屏或睡眠时暂停。</small></div>
-            <div className="screen-run-state" data-running={running}>
-              <span className="screen-state-dot" aria-hidden="true" /><div><strong>{activeStatus}</strong><small>{running ? `已保存 ${live?.framesWritten ?? 0} 张 · ${selectedDisplay?.name || ""}` : "开始后可继续使用 HALO，采集会在后台运行。"}</small></div>
-            </div>
-            {running ? <Button variant="danger" block disabled={stopping || taskStatus.cancelling} onClick={() => void stop()}>{stopping || taskStatus.cancelling ? "正在停止…" : "停止采集"}</Button>
-              : <Button variant="primary" block disabled={!selectedDisplay || !outputRoot || !validInterval || busy || supported !== true} onClick={() => void start()} icon={<MonitorIcon aria-hidden="true" />}>{starting ? "正在启动…" : "开始定时截图"}</Button>}
-            {running && live?.kind === "paused" && <p className="screen-paused-note">解锁或唤醒后会自动继续采集。</p>}
-          </Card>
+        <aside className="screen-capture-sidebar">
+          <section className="screen-capture-options">
+            <Card title="采集设置" className="screen-card">
+              <div className="halo-field"><label htmlFor="screen-display">目标显示器</label>
+                <Select id="screen-display" className="screen-display-select" value={displayId} disabled={busy || !displays.length} onChange={setDisplayId} options={displays.length ? displays.map(display => ({ value: display.id, label: `${display.name}${display.primary ? " · 主显示器" : ""} · ${display.width} × ${display.height}` })) : [{ value: "", label: "未检测到显示器" }]} />
+              </div>
+              <div className="halo-field"><label htmlFor="screen-interval">截图间隔</label><NumericStepper id="screen-interval" label="截图间隔" value={interval} min={1} max={86400} disabled={busy} onChange={setInterval} /></div>
+              <div className="halo-field"><label>保存位置</label><button className="screen-folder" disabled={busy} onClick={() => void chooseOutput()}><FolderIcon aria-hidden="true" /><span>{outputRoot ? displayPath(outputRoot) : "选择本地文件夹"}</span><span>选择</span></button></div>
+              {running ? <Button variant="danger" block disabled={stopping || taskStatus.cancelling} onClick={() => void stop()}>{stopping || taskStatus.cancelling ? "正在停止…" : <span className="screen-running-button-label"><span>已保存 {live?.framesWritten ?? 0} 张</span><strong>停止采集</strong></span>}</Button>
+                : <Button variant="primary" block disabled={!selectedDisplay || !outputRoot || !validInterval || busy || supported !== true} onClick={() => void start()} icon={<MonitorIcon aria-hidden="true" />}>{starting ? "正在启动…" : "开始定时截图"}</Button>}
+              {running && live?.kind === "paused" && <p className="screen-paused-note">解锁或唤醒后会自动继续采集。</p>}
+            </Card>
+          </section>
+
+          <section className="screen-calendar-sidebar">
+            <div className="screen-calendar-heading"><strong>每日截图</strong><span>{days.length} 天</span></div>
+            {!outputRoot ? <EmptyState title="先选择保存位置" description="截图和每日视频都会保存在本地目录。" />
+              : days.length ? <Calendar
+                aria-label="每日截图日期"
+                value={calendarDate}
+                defaultMonth={calendarDate}
+                disabledDate={date => !daysByDate.has(dateKey(date))}
+                dayLabel={date => {
+                  const day = daysByDate.get(dateKey(date));
+                  const label = date.toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric" });
+                  return day ? `${label}，${day.frameCount} 张截图` : label;
+                }}
+                onChange={date => setSelectedDate(dateKey(date))}
+              /> : <EmptyState title="还没有截图" description="开始定时截图后，每一天的画面会显示在这里。" />}
+          </section>
         </aside>
 
         <section className="screen-gallery">
-          <Card title="每日截图" meta={`${days.length} 天`} className="screen-card screen-days-card">
-            {!outputRoot ? <EmptyState title="先选择保存位置" description="截图和每日视频都会保存在本地目录。" />
-              : days.length ? <div className="screen-day-list">{days.map(day => <button key={day.date} className="screen-day-item" data-selected={day.date === selectedDate} onClick={() => setSelectedDate(day.date)}>
-                <span><strong>{dateLabel(day.date)}</strong><small>{day.firstCapturedAt}–{day.lastCapturedAt}</small></span><span className="screen-day-count">{day.frameCount} 张</span>
-              </button>)}</div> : <EmptyState title="还没有截图" description="开始定时截图后，每一天的画面会显示在这里。" />}
-          </Card>
-
           <Card title={selectedDate ? dateLabel(selectedDate) : "截图预览"} meta={selectedDate ? `${frames?.total || 0} 张` : undefined}
             actions={selectedDate ? <button className="halo-link-button" onClick={() => void openDay()}>打开文件夹</button> : undefined}
             className="screen-card screen-gallery-card" flush>
             {selectedDate && <div className="screen-export-bar">
               <label htmlFor="screen-fps">视频帧率</label>
-              <select id="screen-fps" value={selectedFps} disabled={busy} onChange={event => setFps(Number(event.target.value))}>{FPS_OPTIONS.map(value => <option key={value} value={value}>{value} fps</option>)}</select>
+              <Select id="screen-fps" className="screen-fps-select" value={String(selectedFps)} disabled={busy} onChange={value => setFps(Number(value))} options={FPS_OPTIONS.map(value => ({ value: String(value), label: `${value} fps` }))} />
               <Button variant="primary" disabled={!frames?.total || busy} onClick={() => void exportDay()}>{exporting ? "正在导出…" : "导出 MP4"}</Button>
             </div>}
             {exporting && <div className="screen-export-progress" role="status"><span>{exportLive?.message || "正在编码…"}</span><div className="halo-progress"><span style={{ width: `${exportLive?.progressPercent ?? 0}%` }} /></div></div>}

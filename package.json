@@ -2,7 +2,7 @@
   "name": "halo-desktop",
   "productName": "HALO",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "HALO — 本地文件洗码、校验恢复与视频工具的桌面工作台",
   "main": "electron/main.cjs",
   "license": "MIT",
@@ -12,20 +12,21 @@
     "build": "tsc --noEmit && vite build",
     "test": "node --test tests/*.test.cjs",
     "preview": "vite preview",
-    "dist:win": "npm run build && electron-builder --win nsis portable --publish never",
+    "dist:win": "npm run build && electron-builder --win nsis portable --x64 --publish never",
     "dist:mac": "npm run build && electron-builder --mac dmg zip --arm64 --publish never",
     "dist:dir": "npm run build && electron-builder --dir"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "ffmpeg-static": "^5.2.0",
     "ffprobe-static": "^3.1.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.6.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
     "concurrently": "^9.2.1",
     "cross-env": "^7.0.3",
     "electron": "44.9.1",
@@ -53,6 +54,13 @@
       "**/ffprobe-static/**"
     ],
     "win": {
+      "publish": [
+        {
+          "provider": "github",
+          "owner": "weepwood",
+          "repo": "tools-desktop"
+        }
+      ],
       "target": [
         {
           "target": "nsis",
@@ -79,6 +87,15 @@
     },
     "mac": {
       "identity": "-",
+      "protocols": [
+        {
+          "name": "HALO URL Scheme",
+          "schemes": [
+            "openhalo"
+          ],
+          "role": "Viewer"
+        }
+      ],
       "target": [
         "dmg",
         "zip"

@@ -29,6 +29,7 @@ function wash(r){
 }
 const emptyCommands=new Set(['window_minimize','window_toggle_maximize','window_close',
   'is_autostart_enabled','task_running','task_status','cancel_task',
+  'openhalo_status','openhalo_register','openhalo_unregister','openhalo_config_get','openhalo_calls',
   'list_history','clear_history','storage_diagnostics','video_tool_status','list_video_tasks','list_split_tasks',
   'get_shutdown_schedule','cancel_shutdown','mail_config_get','mail_test',
   'screen_capture_supported','screen_capture_displays','screen_capture_last_session']);
@@ -55,6 +56,29 @@ function validateCommand(command,args={}){
     case 'settings_set':
       check(object(args.settings)&&flag(args.settings.showInMenuBar)&&
         object(args.settings.ui),'设置');return;
+    case 'update_status':
+    case 'update_check':
+    case 'update_download':
+    case 'update_install':
+    case 'update_open_release':
+      check(Object.keys(args).length===0,'更新');return;
+    case 'openhalo_config_set':{
+      const config=args.config;
+      check(object(config)&&object(config.aliases)&&Object.keys(config.aliases).length<=200&&
+        Object.entries(config.aliases).every(([key,value])=>/^[\w.-]{1,80}$/u.test(key)&&
+          typeof value==='string'&&value.length<=32768),'别名');
+      check(flag(config.logging),'调用日志');
+      check(flag(config.enabled),'协议启用状态');
+      let validGateway=false;
+      try{
+        const gateway=new URL(config.gatewayUrl);
+        validGateway=typeof config.gatewayUrl==='string'&&config.gatewayUrl.length<=2048&&
+          ['http:','https:'].includes(gateway.protocol)&&Boolean(gateway.hostname)&&
+          !gateway.username&&!gateway.password;
+      }catch{}
+      check(validGateway,'网关');
+      return;
+    }
     case 'mail_config_set':{
       const patch=args.patch;
       check(object(patch),'邮件配置');

@@ -6,6 +6,7 @@ import {
   MailIcon,
   PluginIcon,
   TerminalIcon,
+  GlobeIcon,
 } from "../lib/icons";
 import { searchSettings } from "./settingsSearch";
 import type { ComponentType, SVGProps } from "react";
@@ -25,6 +26,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   { id: "appearance", label: "外观", icon: PluginIcon, section: "应用" },
   { id: "shortcuts", label: "快捷键", icon: KeyboardIcon, section: "应用" },
   { id: "advanced", label: "高级", icon: TerminalIcon, section: "系统" },
+  { id: "url-scheme", label: "URL Scheme", icon: GlobeIcon, section: "系统" },
 ];
 
 interface SettingsSidebarProps {

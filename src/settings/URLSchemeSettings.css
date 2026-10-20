@@ -1,0 +1,144 @@
+.openhalo-link-form,
+.openhalo-alias-form,
+.openhalo-gateway-config {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.openhalo-link-form > :last-child,
+.openhalo-alias-form > :nth-child(2),
+.openhalo-gateway-config > :nth-child(2) {
+  flex: 1;
+  min-width: 120px;
+}
+
+.openhalo-generated-link {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.openhalo-generated-link label,
+.openhalo-gateway-config > span {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.openhalo-generated-link code,
+.openhalo-alias-row code,
+.openhalo-log-row code {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--text-sm);
+}
+
+.openhalo-help,
+.openhalo-empty {
+  margin: var(--space-3) var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.openhalo-alias-list,
+.openhalo-log-list {
+  border-top: 1px solid var(--color-border);
+}
+
+.openhalo-alias-row {
+  display: grid;
+  grid-template-columns: minmax(80px, 0.35fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+}
+
+.openhalo-alias-row + .openhalo-alias-row,
+.openhalo-log-row + .openhalo-log-row {
+  border-top: 1px solid var(--color-border);
+}
+
+.openhalo-alias-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.openhalo-gateway-config {
+  border-top: 1px solid var(--color-border);
+}
+
+.openhalo-log-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.openhalo-log-row {
+  display: grid;
+  gap: 4px;
+  padding: var(--space-2) var(--space-4);
+}
+
+.openhalo-log-row > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.openhalo-log-row strong {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+}
+
+.openhalo-log-row [data-status] {
+  margin-left: auto;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.openhalo-log-row [data-status="error"] { color: var(--halo-danger-text); }
+
+.openhalo-log-row time,
+.openhalo-log-error {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.openhalo-log-error {
+  color: var(--halo-danger-text);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 680px) {
+  .openhalo-link-form,
+  .openhalo-alias-form,
+  .openhalo-gateway-config {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .openhalo-generated-link {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .openhalo-generated-link label {
+    grid-column: 1 / -1;
+  }
+
+  .openhalo-generated-link code {
+    grid-column: 1;
+  }
+}

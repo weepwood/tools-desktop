@@ -54,7 +54,22 @@ CI 为 Windows 构建 x64 安装版和便携版，为 macOS 构建 Apple 芯片�
 | 任务中心 | 汇总运行进度与最近洗码、恢复、截图、切分记录 |
 | 跨平台电源计划 | Windows/macOS/Linux 定时关机；定时开机需平台和硬件支持 |
 | 托盘、通知、开机启动 | Electron 主进程 |
+| 软件更新 | 手动检查 GitHub 正式版；Windows NSIS 安装版应用内下载并安装，其他版本打开发布页 |
 | 邮件通知 | 自研 SMTP 客户端（EHLO / STARTTLS / AUTH / DATA），密码经系统密钥环加密 |
+| `openhalo:` URL Scheme | Windows/macOS 协议注册、文件动作、别名、链接生成与本地调用日志 |
+
+## URL Scheme
+
+设置 → URL Scheme 中注册 `openhalo:`，即可从语雀等支持 HTTP 链接的文档唤起 HALO。协议只在用户点击「注册协议」后启用；设置页也可以取消注册、配置路径别名、生成原生 URI / 网关链接并查看最近 200 条调用记录。
+
+```text
+openhalo:C:\Users\me\Documents\notes.txt
+openhalo://reveal/C:\Users\me\Documents\notes.txt
+openhalo://run/C:\Tools\tool.exe%20--help
+openhalo://url/https%3A%2F%2Fexample.com
+```
+
+支持 `open`（默认）、`reveal`、`run` 和 `url` 动作。`run` 每次执行前都会显示系统确认框；`url` 仅允许 HTTP(S)。配置和调用日志保存在 HALO 的本地应用数据目录。Windows 与 macOS 均支持，macOS 协议声明随应用包构建。
 
 ## 邮件通知
 

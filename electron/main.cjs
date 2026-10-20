@@ -1,10 +1,12 @@
 'use strict';
 const {app,BrowserWindow,ipcMain,dialog,Tray,Menu,nativeImage,Notification,protocol,shell,safeStorage}=require('electron');
+const {autoUpdater}=require('electron-updater');
 const fs=require('node:fs/promises');
+const fsNative=require('node:fs');
 const path=require('node:path');
 const os=require('node:os');
 const crypto=require('node:crypto');
-const {execFile}=require('node:child_process');
+const {execFile,spawn}=require('node:child_process');
 const {promisify}=require('node:util');
 const {pathToFileURL}=require('node:url');
 const {scan,findDuplicates,wash,restore}=require('./engine.cjs');
@@ -14,6 +16,8 @@ const {SplitService}=require('./split.cjs');
 const {Mailer}=require('./mailer.cjs');
 const {ScreenCapture}=require('./screen-capture.cjs');
 const {validateCommand}=require('./ipc-validation.cjs');
+const {executeOpenHaloUri,createOpenHaloStore}=require('./url-scheme.cjs');
+const {createUpdateService}=require('./update-service.cjs');
 const logger=require('./logger.cjs');
 protocol.registerSchemesAsPrivileged([{scheme:'halo',privileges:{secure:true,standard:true,supportFetchAPI:true,stream:true}}]);
 app.setName('HALO');
@@ -22,10 +26,105 @@ logger.init({directory:app.getPath('userData')});
 if(process.platform==='win32')app.setAppUserModelId('com.weepwood.halo.electron');
 const hasInstanceLock=app.requestSingleInstanceLock();
 if(!hasInstanceLock)app.quit();
-let win,tray,exiting=false,active=null,history,video,split,mailer,screenCapture;
+let win,tray,exiting=false,active=null,history,video,split,mailer,screenCapture,openHaloStore,updateService;
 let trayVisible=true,launchHidden=false,shutdownPlan=null;
+let windowReady=false,drainingOpenHaloUris=false;
+const pendingOpenHaloUris=process.argv.slice(1).filter(value=>/^openhalo:/i.test(value));
 const execFileAsync=promisify(execFile);
 const shutdownSchedulePath=()=>path.join(app.getPath('userData'),'shutdown-schedule.json');
+function receiveOpenHaloUri(raw){
+  if(typeof raw!=='string'||!/^openhalo:/i.test(raw))return;
+  pendingOpenHaloUris.push(raw);
+  void drainOpenHaloUris();
+}
+function isOpenHaloUri(value){return typeof value==='string'&&/^openhalo:/i.test(value);}
+function protocolClientArgs(){
+  return process.defaultApp&&process.argv[1]
+    ? {path:process.execPath,args:[path.resolve(process.argv[1])]}
+    : {path:undefined,args:undefined};
+}
+async function registerOpenHaloProtocol(registered){
+  if(!['win32','darwin'].includes(process.platform))throw Error('openhalo: 目前仅支持 Windows 和 macOS');
+  const options=protocolClientArgs();
+  const ok=registered
+    ? app.setAsDefaultProtocolClient('openhalo',options.path,options.args)
+    : app.removeAsDefaultProtocolClient('openhalo',options.path,options.args);
+  if(!ok)throw Error(registered?'系统未能注册 openhalo: 协议':'系统未能取消 openhalo: 协议注册');
+  return app.isDefaultProtocolClient('openhalo',options.path,options.args);
+}
+async function runDetached(executable,args){
+  await new Promise((resolve,reject)=>{
+    const child=spawn(executable,args,{detached:true,stdio:'ignore',shell:false,windowsHide:true});
+    child.once('error',reject);
+    child.once('spawn',()=>{child.unref();resolve();});
+  });
+}
+async function findExecutableOnPath(name){
+  const pathApi=process.platform==='win32'?path.win32:path.posix;
+  const extensions=process.platform==='win32'
+    ? (pathApi.extname(name)?['']:String(process.env.PATHEXT||'.COM;.EXE;.BAT;.CMD').split(';'))
+    : [''];
+  for(const directory of String(process.env.PATH||'').split(path.delimiter).filter(Boolean)){
+    for(const extension of extensions){
+      const candidate=pathApi.join(directory,name+extension);
+      try{
+        const stat=await fs.stat(candidate);
+        if(!stat.isFile())continue;
+        await fs.access(candidate,process.platform==='win32'?fsNative.constants.F_OK:fsNative.constants.X_OK);
+        return candidate;
+      }catch{}
+    }
+  }
+  return null;
+}
+async function handleOpenHaloUri(raw){
+  if(!openHaloStore)return;
+  const options=protocolClientArgs();
+  let config;
+  try{config=await openHaloStore.getConfig();}
+  catch(error){logger.warn('读取 openhalo 配置失败',error);return;}
+  if(!config.enabled||!app.isDefaultProtocolClient('openhalo',options.path,options.args)){
+    await openHaloStore.recordCall({uri:raw,status:'ignored',error:'协议尚未注册或已取消注册'}).catch(error=>logger.warn('openhalo 调用日志写入失败',error));
+    return;
+  }
+  show();
+  try{
+    const result=await executeOpenHaloUri(raw,{
+      aliases:config.aliases,
+      findExecutable:findExecutableOnPath,
+      pathExists:async value=>{
+        try{const stat=await fs.stat(value);return stat.isFile()||stat.isDirectory();}catch{return false;}
+      },
+      openPath:async value=>{const error=await shell.openPath(value);if(error)throw Error(error);},
+      revealPath:value=>shell.showItemInFolder(value),
+      openUrl:value=>shell.openExternal(value),
+      confirmRun:async({executable,args})=>{
+        const answer=await dialog.showMessageBox(win,{
+          type:'warning',title:'确认运行外部程序',
+          message:'此 openhalo: 链接请求启动本地程序。只运行来自可信来源的程序。',
+          detail:[executable,...args].join(' '),
+          buttons:['运行','取消'],defaultId:1,cancelId:1,noLink:true,
+        });
+        return answer.response===0;
+      },
+      runCommand:runDetached,
+    });
+    await openHaloStore.recordCall({uri:raw,status:result.status,action:result.action,target:result.target}).catch(error=>logger.warn('openhalo 调用日志写入失败',error));
+  }catch(error){
+    logger.warn('openhalo URI 处理失败',error);
+    await openHaloStore.recordCall({uri:raw,status:'error',error:error.message}).catch(logError=>logger.warn('openhalo 调用日志写入失败',logError));
+    if(win&&!win.isDestroyed())await dialog.showMessageBox(win,{
+      type:'error',title:'无法处理 URL Scheme',message:error.message,buttons:['确定'],noLink:true,
+    }).catch(dialogError=>logger.warn('显示 openhalo 错误提示失败',dialogError));
+  }
+}
+async function drainOpenHaloUris(){
+  if(drainingOpenHaloUris||!windowReady||!openHaloStore||!win||win.isDestroyed())return;
+  drainingOpenHaloUris=true;
+  try{while(pendingOpenHaloUris.length)await handleOpenHaloUri(pendingOpenHaloUris.shift());}
+  finally{drainingOpenHaloUris=false;}
+}
+app.on('open-url',(event,url)=>{event.preventDefault();receiveOpenHaloUri(url);});
 const status=()=>({running:Boolean(active),kind:active?.kind||null,cancelling:Boolean(active?.controller.signal.aborted),progress:active?.progress||null});
 function broadcast(name,payload){if(win&&!win.isDestroyed())win.webContents.send('halo:event',{name,payload});}
 function statusChanged(){broadcast('task-status',status());}
@@ -236,7 +335,13 @@ function devAddress(){
     throw Error('开发服务器必须使用 http://127.0.0.1:1420');
   return url.toString();
 }
-app.on('second-instance',()=>{if(hasInstanceLock&&win&&!win.isDestroyed()){if(win.isMinimized())win.restore();show();}});
+app.on('second-instance',(event,commandLine=[])=>{
+  if(!hasInstanceLock)return;
+  const uris=commandLine.filter(isOpenHaloUri);
+  if(uris.length){uris.forEach(receiveOpenHaloUri);return;}
+  if(!win||win.isDestroyed())return;
+  if(win.isMinimized())win.restore();show();
+});
 function createWindow(){
   const mac=process.platform==='darwin';
   const development=devAddress();
@@ -258,6 +363,7 @@ function createWindow(){
   });
   if(development)win.loadURL(development);
   else win.loadFile(path.join(__dirname,'..','dist','index.html'));
+  win.webContents.once('did-finish-load',()=>{windowReady=true;void drainOpenHaloUris();});
   win.once('ready-to-show',()=>{if(!launchHidden)win.show();});
 }
 function wire(){
@@ -305,6 +411,31 @@ function wire(){
       case 'set_menu_bar_visible':trayVisible=Boolean(args.visible);if(trayVisible)createTray();else destroyTray();return;
       case 'settings_get':return await settings();
       case 'settings_set':return await saveSettings(args.settings);
+      case 'update_status':return updateService.getSnapshot();
+      case 'update_check':return await updateService.check();
+      case 'update_download':return await updateService.download();
+      case 'update_install':return updateService.install();
+      case 'update_open_release':return await updateService.openRelease();
+      case 'openhalo_status':{
+        const supported=['win32','darwin'].includes(process.platform),options=protocolClientArgs();
+        const [config,osRegistered]=await Promise.all([
+          openHaloStore.getConfig(),
+          Promise.resolve(supported&&app.isDefaultProtocolClient('openhalo',options.path,options.args)),
+        ]);
+        return {supported,registered:supported&&config.enabled&&osRegistered,enabled:config.enabled,osRegistered,platform:process.platform};
+      }
+      case 'openhalo_register':{
+        await registerOpenHaloProtocol(true);
+        return await openHaloStore.setEnabled(true);
+      }
+      case 'openhalo_unregister':{
+        await openHaloStore.setEnabled(false);
+        await registerOpenHaloProtocol(false);
+        return false;
+      }
+      case 'openhalo_config_get':return await openHaloStore.getConfig();
+      case 'openhalo_config_set':return await openHaloStore.setConfig(args.config);
+      case 'openhalo_calls':return await openHaloStore.readCalls();
       // The password never travels back to the renderer: view() reports only
       // whether a secret is stored and whether the OS keyring protects it.
       case 'mail_config_get':return await mailer.view();
@@ -399,6 +530,8 @@ function wire(){
 }
 app.whenReady().then(async()=>{
   if(!hasInstanceLock)return;
+  openHaloStore=createOpenHaloStore(app.getPath('userData'));
+  updateService=createUpdateService({app,autoUpdater,shell,emit:broadcast,isTaskRunning:()=>Boolean(active)});
   if(process.platform==='darwin'){
     const appIcon=nativeImage.createFromPath(path.join(__dirname,'..','assets','icon.png'));
     if(!appIcon.isEmpty())app.dock?.setIcon(appIcon);

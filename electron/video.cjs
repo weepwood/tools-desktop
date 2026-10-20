@@ -18,10 +18,26 @@ async function ordinaryFile(p) {try{const st=await fs.lstat(p);return st.isFile(
 async function resolveBinaries(){
   const chosen={};
   for (const key of ['ffmpeg','ffprobe']){
-    const candidates=availableBinary(key);
+    const candidates=[...new Set(availableBinary(key))];
     chosen[key]=null;
-    for(const candidate of candidates){if(await ordinaryFile(candidate)){chosen[key]=candidate;break;}}
-    if(!chosen[key])throw Error('未找到 '+key+'，请通过 HALO_VIDEO_TOOLS 配置目录或安装完整视频工具。');
+    for(const candidate of candidates){
+      let resolved;
+      try {
+        // PATH entries and user supplied tool directories commonly contain
+        // symlinks (for example Homebrew's /opt/homebrew/bin/ffmpeg).
+        resolved=await fs.realpath(candidate);
+        const stat=await fs.stat(resolved);
+        if(!stat.isFile())continue;
+      }catch{continue;}
+      try {
+        // Existence and execute permissions are not enough on macOS: an
+        // incompatible or damaged bundled binary can still fail at spawn.
+        await execBinary(resolved,['-version'],undefined,10000);
+        chosen[key]=resolved;
+        break;
+      }catch{}
+    }
+    if(!chosen[key])throw Error('未找到可运行的 '+key+'，请通过 HALO_VIDEO_TOOLS 配置目录或安装完整视频工具。');
   }
   return chosen;
 }

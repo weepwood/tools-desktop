@@ -4,8 +4,12 @@ const {validateCommand}=require('../electron/ipc-validation.cjs');
 const validScan={rootPath:process.platform==='win32'?'C:\\Videos':'/tmp/videos',
   recursive:true,skipHidden:true,skipSmall:false,minSizeBytes:0,extensions:['mp4','png']};
 test('known no-argument IPC commands are accepted',()=>{
-  for(const command of ['task_status','list_history','cancel_task','window_close'])
+  for(const command of ['task_status','list_history','cancel_task','window_close',
+    'update_check','update_download','update_install','update_open_release'])
     assert.doesNotThrow(()=>validateCommand(command,{}));
+});
+test('update IPC accepts no renderer-controlled arguments',()=>{
+  assert.throws(()=>validateCommand('update_open_release',{url:'https://example.com'}),/更新/);
 });
 test('only an expected command can cross the bridge',()=>{
   assert.throws(()=>validateCommand('shell_exec',{}),/未知 IPC/);
@@ -59,4 +63,24 @@ test('mail settings are bounded at the bridge',()=>{
   assert.throws(()=>validateCommand('mail_config_set',{patch:{to:new Array(30).fill('a@b.com')}}),/收件人/);
   assert.throws(()=>validateCommand('mail_notify',{title:'HALO',body:'y'.repeat(5000)}),/邮件通知内容/);
   assert.doesNotThrow(()=>validateCommand('mail_notify',{title:'HALO 任务结果',body:'完成'}));
+});
+test('URL Scheme IPC is explicit and config is bounded before crossing the bridge',()=>{
+  for(const command of ['openhalo_status','openhalo_register','openhalo_unregister',
+    'openhalo_config_get','openhalo_calls'])
+    assert.doesNotThrow(()=>validateCommand(command,{}));
+  assert.doesNotThrow(()=>validateCommand('openhalo_config_set',{config:{
+    aliases:{hosts:'/etc/hosts'},logging:true,gatewayUrl:'https://url.example',enabled:false,
+  }}));
+  assert.throws(()=>validateCommand('openhalo_config_set',{config:{
+    aliases:{hosts:42},logging:true,gatewayUrl:'https://url.example',enabled:false,
+  }}),/别名/);
+  assert.throws(()=>validateCommand('openhalo_config_set',{config:{
+    aliases:{},logging:'yes',gatewayUrl:'https://url.example',enabled:false,
+  }}),/调用日志/);
+  assert.throws(()=>validateCommand('openhalo_config_set',{config:{
+    aliases:{},logging:true,gatewayUrl:'file:///etc/passwd',enabled:false,
+  }}),/网关/);
+  assert.throws(()=>validateCommand('openhalo_config_set',{config:{
+    aliases:{},logging:true,gatewayUrl:'https://',enabled:false,
+  }}),/网关/);
 });

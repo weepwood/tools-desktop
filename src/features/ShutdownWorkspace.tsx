@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { Button, Card, EmptyState } from "../components/ui";
+import { DateTimePicker } from "../components/DateTimePicker";
+import { NumericStepper } from "../components/NumericStepper";
+import { NoticeStack, NoticeToast } from "../components/NoticeToast";
 import { ClockIcon } from "../lib/icons";
 import { SegmentedControl } from "../settings/controls/SegmentedControl";
 import { confirm } from "../lib/dialog";
@@ -7,6 +10,7 @@ import "./ShutdownWorkspace.css";
 
 type ShutdownMode = "at-time" | "after-hours";
 type ShutdownAction = "shutdown" | "power-on";
+type ShutdownNotice = { type: "info" | "success" | "error"; text: string };
 interface ShutdownState {
   platform: string;
   canShutdown: boolean;
@@ -41,11 +45,14 @@ export function ShutdownWorkspace({ active }: { active: boolean }) {
   const [action, setAction] = useState<ShutdownAction>("shutdown");
   const [targetTime, setTargetTime] = useState(currentMinuteValue);
   const [hours, setHours] = useState("1");
+  const [minutes, setMinutes] = useState("0");
   const [shutdown, setShutdown] = useState<ShutdownState>({ platform: "unknown", canShutdown: false, canPowerOn: false, plan: null });
   const [now, setNow] = useState(Date.now());
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<ShutdownNotice | null>(null);
+  const delayMinutes = Number(hours) * 60 + Number(minutes);
+  const delayedTime = new Date(now + (Number.isFinite(delayMinutes) ? delayMinutes : 0) * 60_000);
 
   useEffect(() => {
     let mounted = true;
@@ -56,7 +63,7 @@ export function ShutdownWorkspace({ active }: { active: boolean }) {
     void window.halo.invoke<ShutdownState>("get_shutdown_schedule").then((result) => {
       if (mounted) setShutdown(result);
     }).catch((error) => {
-      if (mounted) setNotice("读取关机计划失败：" + errorMessage(error));
+      if (mounted) setNotice({ type: "error", text: "读取关机计划失败：" + errorMessage(error) });
     }).finally(() => {
       if (mounted) setLoading(false);
     });
@@ -64,18 +71,20 @@ export function ShutdownWorkspace({ active }: { active: boolean }) {
   }, []);
 
   useEffect(() => {
-    if (!active || shutdown.plan === null) return;
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    if (!active || (shutdown.plan === null && mode !== "after-hours")) return;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), shutdown.plan === null ? 30_000 : 1000);
     return () => window.clearInterval(timer);
-  }, [active, shutdown.plan]);
+  }, [active, mode, shutdown.plan]);
 
   async function schedule() {
     if ((action === "shutdown" ? !shutdown.canShutdown : !shutdown.canPowerOn) || busy || shutdown.plan !== null) return;
+    const requestedAt = Date.now();
     const scheduledAt = mode === "at-time"
       ? new Date(targetTime).getTime()
-      : Date.now() + Number(hours) * 60 * 60 * 1000;
-    if (!Number.isFinite(scheduledAt) || scheduledAt - Date.now() < 60_000) {
-      setNotice("请选择至少 1 分钟之后的时间。");
+      : requestedAt + delayMinutes * 60_000;
+    if (!Number.isFinite(scheduledAt) || scheduledAt - requestedAt < 60_000) {
+      setNotice({ type: "info", text: "请选择至少 1 分钟之后的时间。" });
       return;
     }
 
@@ -90,19 +99,24 @@ export function ShutdownWorkspace({ active }: { active: boolean }) {
     if (!accepted) return;
 
     setBusy(true);
-    setNotice("");
+      setNotice(null);
     try {
       const result = await window.halo!.invoke<{ scheduledAt: number; action: ShutdownAction }>("schedule_shutdown", { scheduledAt, action });
       setShutdown((current) => ({ ...current, plan: result }));
       setNow(Date.now());
-      setNotice(action === "shutdown"
+      const successMessage = action === "shutdown"
         ? "已安排关机。计划由操作系统执行，关闭 HALO 后仍会生效。"
         : shutdown.platform === "linux"
           ? "已设置 RTC 唤醒闹钟。它依赖主板硬件；请在计划时间前正常关机，电脑才会自动启动。"
-          : "已安排开机或唤醒。请确认设备支持该电源事件。",
-      );
+          : "已安排开机或唤醒。请确认设备支持该电源事件。";
+      setNotice({ type: "success", text: successMessage });
     } catch (error) {
-      setNotice("安排电源计划失败：" + errorMessage(error));
+      const detail = errorMessage(error);
+      const authorizationCancelled = /-128|用户已取消|user canceled|user cancelled/i.test(detail);
+      const message = authorizationCancelled
+        ? "未设置电源计划：macOS 管理员授权已取消。请重新安排，并在系统授权对话框中选择允许。"
+        : "安排电源计划失败：" + detail;
+      setNotice({ type: "error", text: message });
     } finally {
       setBusy(false);
     }
@@ -111,13 +125,13 @@ export function ShutdownWorkspace({ active }: { active: boolean }) {
   async function cancel() {
     if (busy || shutdown.plan === null) return;
     setBusy(true);
-    setNotice("");
+    setNotice(null);
     try {
       await window.halo!.invoke<boolean>("cancel_shutdown");
       setShutdown((current) => ({ ...current, plan: null }));
-      setNotice("已取消电源计划。");
+      setNotice({ type: "success", text: "已取消电源计划。" });
     } catch (error) {
-      setNotice("取消电源计划失败：" + errorMessage(error));
+      setNotice({ type: "error", text: "取消电源计划失败：" + errorMessage(error) });
     } finally {
       setBusy(false);
     }
@@ -181,32 +195,21 @@ export function ShutdownWorkspace({ active }: { active: boolean }) {
               />
             </div>
             {mode === "at-time" ? (
-              <label className="shutdown-field">
-                <span>{action === "shutdown" ? "关机时间" : "开机时间"}</span>
-                <input
-                  className="shutdown-input"
-                  type="datetime-local"
-                  value={targetTime}
-                  min={currentMinuteValue()}
-                  onChange={(event) => setTargetTime(event.target.value)}
-                />
-              </label>
+              <div className="shutdown-field">
+                <label htmlFor="shutdown-target-time">{action === "shutdown" ? "关机时间" : "开机时间"}</label>
+                <DateTimePicker id="shutdown-target-time" value={targetTime} min={currentMinuteValue()} onChange={setTargetTime} />
+              </div>
             ) : (
-              <label className="shutdown-field">
-                <span>{action === "shutdown" ? "延迟关机" : "延迟开机"}</span>
-                <span className="shutdown-hours-input">
-                  <input
-                    className="shutdown-input"
-                    type="number"
-                    min={1}
-                    max={720}
-                    step={1}
-                    value={hours}
-                    onChange={(event) => setHours(event.target.value)}
-                  />
-                  <span>小时</span>
-                </span>
-              </label>
+              <>
+                <div className="shutdown-field shutdown-after-hours-field">
+                  <span>{action === "shutdown" ? "延迟关机" : "延迟开机"}</span>
+                  <div className="shutdown-duration-inputs">
+                    <NumericStepper id="shutdown-hours" label="延迟小时数" value={hours} unit="小时" min={0} max={720} onChange={setHours} />
+                    <NumericStepper id="shutdown-minutes" label="延迟分钟数" value={minutes} unit="分钟" min={0} max={59} onChange={setMinutes} />
+                  </div>
+                </div>
+                <p className="shutdown-estimated-time">预计{action === "shutdown" ? "关机" : "开机/唤醒"}时间：{delayedTime.toLocaleString("zh-CN", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+              </>
             )}
             <p className="shutdown-muted">
               {action === "shutdown"
@@ -223,14 +226,14 @@ export function ShutdownWorkspace({ active }: { active: boolean }) {
             )}
             <Button
               variant="primary"
-              disabled={loading || busy || (action === "shutdown" ? !shutdown.canShutdown : !shutdown.canPowerOn) || (mode === "after-hours" && (!Number.isInteger(Number(hours)) || Number(hours) < 1 || Number(hours) > 720))}
+              disabled={loading || busy || (action === "shutdown" ? !shutdown.canShutdown : !shutdown.canPowerOn) || (mode === "after-hours" && (!Number.isInteger(Number(hours)) || Number(hours) < 0 || Number(hours) > 720 || !Number.isInteger(Number(minutes)) || Number(minutes) < 0 || Number(minutes) > 59 || delayMinutes < 1 || delayMinutes > 720 * 60))}
               onClick={() => void schedule()}
             >
               {busy ? "正在安排…" : `安排${action === "shutdown" ? "关机" : "开机/唤醒"}`}
             </Button>
           </Card>
         )}
-        {notice && <p className="shutdown-notice" role="status">{notice}</p>}
+        {notice && <NoticeStack><NoticeToast type={notice.type} message={notice.text} onDismiss={() => setNotice(null)} /></NoticeStack>}
       </main>
     </div>
   );

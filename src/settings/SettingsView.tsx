@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { SETTINGS_CATEGORIES } from "./SettingsSidebar";
 import { ShortcutsSettings } from "./ShortcutsSettings";
 import { MailSettings } from "./MailSettings";
+import { URLSchemeSettings } from "./URLSchemeSettings";
 import { Group, Row } from "./SettingsGroup";
 import { Toggle } from "./controls/Toggle";
 import { SegmentedControl } from "./controls/SegmentedControl";
@@ -41,6 +42,7 @@ export function SettingsBody({ category }: { category: string }) {
         {category === "appearance" && <AppearanceSettings />}
         {category === "shortcuts" && <ShortcutsSettings />}
         {category === "advanced" && <AdvancedSettings />}
+        {category === "url-scheme" && <URLSchemeSettings />}
       </div>
     </div>
   );
@@ -189,12 +191,105 @@ function GeneralSettings() {
           </button>
         </Row>
       </Group>
+      <UpdateSettings />
       {feedback && (
         <p className="settings-feedback" role="status">
           {feedback}
         </p>
       )}
     </>
+  );
+}
+
+type UpdateStatusName = "idle" | "checking" | "available" | "up-to-date" | "downloading" | "downloaded" | "installing" | "error";
+interface UpdateStatus {
+  status: UpdateStatusName;
+  currentVersion: string;
+  latestVersion?: string;
+  releaseNotes?: string;
+  releaseUrl?: string;
+  mode: "windows-installer" | "release-page";
+  canInstall: boolean;
+  error?: string | null;
+  progress?: { percent: number; transferred: number; total: number; bytesPerSecond: number } | null;
+}
+
+function UpdateSettings() {
+  const [state, setState] = useState<UpdateStatus>({
+    status: "idle",
+    currentVersion: "",
+    mode: "release-page",
+    canInstall: false,
+  });
+  const desktop = window.halo;
+
+  useEffect(() => {
+    if (!desktop) return;
+    let mounted = true;
+    const unsubscribe = desktop.on<UpdateStatus>("update-status", (next) => {
+      if (mounted) setState(next);
+    });
+    void desktop.invoke<UpdateStatus>("update_status")
+      .then((next) => { if (mounted) setState(next); })
+      .catch((error) => {
+        if (mounted) setState((current) => ({ ...current, status: "error", error: String(error) }));
+      });
+    return () => { mounted = false; unsubscribe(); };
+  }, [desktop]);
+
+  const pending = ["checking", "downloading", "installing"].includes(state.status);
+  const action = state.status === "available"
+    ? state.canInstall ? "update_download" : "update_open_release"
+    : state.status === "downloaded" ? "update_install" : "update_check";
+  const actionLabel = state.status === "checking" ? "正在检查…"
+    : state.status === "downloading" ? "正在下载…"
+      : state.status === "installing" ? "正在准备安装…"
+        : state.status === "available" ? state.canInstall ? "下载更新" : "查看下载页面"
+          : state.status === "downloaded" ? "立即重启并安装"
+            : state.status === "up-to-date" ? "重新检查" : "检查更新";
+
+  async function runAction() {
+    if (!desktop) return;
+    try {
+      const next = await desktop.invoke<UpdateStatus>(action);
+      if (next && typeof next === "object" && "status" in next) setState(next);
+    } catch (error) {
+      setState((current) => ({ ...current, status: "error", error: String(error) }));
+    }
+  }
+
+  const progress = Math.max(0, Math.min(100, state.progress?.percent ?? 0));
+  const message = state.status === "checking" ? "正在查询 GitHub 最新正式版…"
+    : state.status === "available" ? `发现新版本 ${state.latestVersion}`
+      : state.status === "up-to-date" ? "当前已是最新正式版。"
+        : state.status === "downloading" ? `正在下载更新：${Math.floor(progress)}%`
+          : state.status === "downloaded" ? `HALO ${state.latestVersion} 已下载，确认后将重启并安装。`
+            : state.status === "installing" ? "应用即将退出并安装更新…"
+              : state.status === "error" ? `更新检查失败：${state.error || "请稍后重试。"}`
+                : desktop ? "手动检查是否有新版本。" : "请在 HALO 桌面应用中检查更新。";
+
+  return (
+    <Group label="软件更新">
+      <Row title="检查更新" description={`当前版本：${state.currentVersion || "读取中…"}`}>
+        <button className="control-button" disabled={!desktop || pending} onClick={() => void runAction()}>
+          {actionLabel}
+        </button>
+      </Row>
+      <div className="settings-update-details" role={state.status === "error" ? "alert" : "status"}>
+        <p>{message}</p>
+        {state.status === "downloading" && (
+          <div className="settings-update-progress" role="progressbar" aria-label="更新下载进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor(progress)}>
+            <div style={{ width: `${progress}%` }} />
+          </div>
+        )}
+      </div>
+      {state.releaseNotes?.trim() && state.latestVersion && (
+        <details className="settings-update-notes">
+          <summary>HALO {state.latestVersion} 更新说明</summary>
+          <div>{state.releaseNotes}</div>
+        </details>
+      )}
+    </Group>
   );
 }
 

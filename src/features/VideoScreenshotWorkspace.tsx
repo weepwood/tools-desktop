@@ -4,6 +4,7 @@ import { open } from "../lib/dialog";
 import { cancelTask, exportContactSheet, extractVideoFrames, getVideoTaskFrames, listVideoTasks, openVideoOutput, probeVideo, videoOutputSuggestion, videoToolStatus } from "../api";
 import { ChevronDownIcon, CloseIcon, FolderIcon, ImageIcon } from "../lib/icons";
 import { NoticeStack, NoticeToast } from "../components/NoticeToast";
+import { NumericStepper } from "../components/NumericStepper";
 import { useScrollFade } from "../lib/useScrollFade";
 import { Button, EmptyState } from "../components/ui";
 import { usePersistedState } from "../lib/usePersistedState";
@@ -222,7 +223,7 @@ export function VideoScreenshotWorkspace({ active }: { active: boolean }) {
             <ImageIcon aria-hidden="true" /><strong>{probing ? "正在读取视频…" : dragging ? "松开以选择视频" : video ? "更换视频" : "拖入一个视频"}</strong><span>或点击选择视频文件</span>
           </button>
           {video && <div className="video-source"><strong title={displayPath(video.path)}>{video.name}</strong><span>{duration(video.durationSeconds)} · {video.width} × {video.height}</span><button className="halo-link-button" onClick={() => void copy(video.path)}>复制源路径</button></div>}
-          <div className="halo-field"><label htmlFor="video-interval">截图间隔</label><div className="halo-presets" role="group" aria-label="常用截图间隔">{[10, 30, 60].map(value => <button key={value} className="halo-preset" aria-pressed={seconds === value} disabled={busy} onClick={() => setInterval(String(value))}>{value} 秒</button>)}</div><div className="halo-input-unit"><input id="video-interval" inputMode="numeric" type="number" min="1" max="86400" step="1" value={interval} disabled={busy} onChange={event => setInterval(event.target.value)} aria-invalid={!validInterval} aria-describedby="video-interval-hint" /><span>秒</span></div><small id="video-interval-hint">{validInterval ? "每隔一段时间保存一张图片。" : "请输入 1–86400 的整数秒。"}</small></div>
+          <div className="halo-field"><label htmlFor="video-interval">截图间隔</label><NumericStepper id="video-interval" label="截图间隔" value={interval} min={1} max={86400} disabled={busy} describedBy="video-interval-hint" onChange={setInterval} /><small id="video-interval-hint">{validInterval ? "每隔一段时间保存一张图片。" : "请输入 1–86400 的整数秒。"}</small></div>
           <div className="halo-field"><label>保存位置</label><button className="video-folder" disabled={!desktop || busy} onClick={() => void chooseOutput()}><FolderIcon aria-hidden="true" /><span>{outputParent ? displayPath(outputParent) : "与视频放在同一位置"}</span><span>选择</span></button>{outputParent && <button className="halo-link-button" disabled={busy} onClick={() => setOutputParent("")}>恢复为视频所在位置</button>}<small className="video-path">{suggestion ? `输出目录：${displayPath(suggestion)}` : "选择视频后显示输出目录。"}</small><small>已存在同名目录时自动编号，保留原有图片。</small></div>
           <details className="video-engine halo-disclosure"><summary><span>{checking ? "正在检查截图工具…" : tools ? "截图工具已就绪" : "截图工具未就绪"}</span><ChevronDownIcon aria-hidden="true" /></summary>{tools && <><p>{tools.source}</p><p>{tools.ffmpegVersion}</p><p>{tools.ffprobeVersion}</p></>}{toolError && <p role="alert">{toolError}</p>}<button className="halo-button secondary compact" disabled={!desktop || busy} onClick={() => void checkTools()}>重新检查</button></details>
           {toolError && <p className="video-error" role="alert">{toolError}</p>}

@@ -21,6 +21,7 @@ const CONTENT: Record<string, SearchRow[]> = {
     { title: "任务通知", description: "洗码或恢复任务结束后发送系统通知" },
     { title: "应用内通知位置", description: "设置操作提示在窗口中的显示位置：四角或顶部居中" },
     { title: "测试通知", description: "发送通知以检查系统权限" },
+    { title: "检查更新", description: "查看最新正式版并下载或打开发布页" },
   ],
   mail: [
     { title: "启用邮件通知", description: "通过 SMTP 服务器把任务结果发送到邮箱" },
@@ -43,6 +44,13 @@ const CONTENT: Record<string, SearchRow[]> = {
   advanced: [
     { title: "恢复记录", description: "历史、任务日志和备份保存在本机，历史不会自动删除" },
     { title: "恢复应用设置", description: "重置主题、字体、动画和启动选项" },
+  ],
+  "url-scheme": [
+    { title: "注册 openhalo 协议", description: "让链接启动 HALO 并处理本地路径" },
+    { title: "链接生成", description: "生成原生 URI 与网关链接" },
+    { title: "路径别名", description: "通过短名称打开常用文件或文件夹" },
+    { title: "调用日志", description: "查看最近 200 条 URL Scheme 调用" },
+    { title: "运行本地程序", description: "每次执行前确认" },
   ],
 };
 
