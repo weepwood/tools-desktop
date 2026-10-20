@@ -7,12 +7,13 @@ const {pathToFileURL}=require('node:url');
 const {scan,wash,restore}=require('./engine.cjs');
 const {History}=require('./history.cjs');
 const {Video}=require('./video.cjs');
+const {SplitService}=require('./split.cjs');
 const {validateCommand}=require('./ipc-validation.cjs');
 protocol.registerSchemesAsPrivileged([{scheme:'xima',privileges:{secure:true,standard:true,supportFetchAPI:true,stream:true}}]);
 app.setAppUserModelId('com.weepwood.xima.electron');
 const hasInstanceLock=app.requestSingleInstanceLock();
 if(!hasInstanceLock)app.quit();
-let win,tray,exiting=false,active=null,history,video;
+let win,tray,exiting=false,active=null,history,video,split;
 let trayVisible=true,launchHidden=false;
 const status=()=>({running:Boolean(active),kind:active?.kind||null,cancelling:Boolean(active?.controller.signal.aborted)});
 function broadcast(name,payload){if(win&&!win.isDestroyed())win.webContents.send('xima:event',{name,payload});}
@@ -147,6 +148,15 @@ function wire(){
       case 'video_output_suggestion':return video.suggest(args.videoPath,args.outputParent);
       case 'extract_video_frames':return task('video',signal=>video.extract(args.request,signal,send));
       case 'list_video_tasks':return video.list();
+      case 'split_video':return task('video-split',signal=>split.split(args.request,signal,send));
+      case 'list_split_tasks':return split.list();
+      case 'open_split_output':{
+        const record=await split.get(args.taskId);
+        if(!record.outputDir)throw Error('此任务没有可打开的分片目录');
+        const dir=await fs.realpath(record.outputDir);
+        if(dir!==record.outputDir)throw Error('分片目录位置发生变化');
+        const error=await shell.openPath(dir);if(error)throw Error(error);return;
+      }
       case 'get_video_task_frames':return video.page(args.taskId,args.page,args.pageSize);
       case 'open_video_output':{
         const record=await video.get(args.taskId);
@@ -162,7 +172,9 @@ app.whenReady().then(async()=>{
   if(!hasInstanceLock)return;
   history=new History(app.getPath('userData'));
   video=new Video(app.getPath('userData'));
+  split=new SplitService(app.getPath('userData'),video);
   await video.recover();
+  await split.recover();
   protocol.handle('xima',async request=>{
     try{
       const url=new URL(request.url);

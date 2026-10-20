@@ -196,3 +196,39 @@ export interface RestoreEvent {
   result: RestoreFileRecord | null
   message: string | null
 }
+
+export interface VideoSplitRequest {
+  videoPath: string
+  maxSizeGb: number
+  outputParent: string | null
+}
+export interface VideoSplitPart {
+  name: string
+  path: string
+  sizeBytes: number
+}
+export type VideoSplitStatus = 'running' | 'completed' | 'skipped' | 'cancelled' | 'failed' | 'interrupted'
+export interface VideoSplitRecord {
+  schemaVersion: number
+  id: string
+  videoPath: string
+  videoName: string
+  sourceBytes: number
+  maxSizeGb: number
+  maxSizeBytes: number
+  outputDir: string | null
+  status: VideoSplitStatus
+  parts: VideoSplitPart[]
+  attempts: number
+  startedAt: string
+  finishedAt: string | null
+  error: string | null
+  historyError: string | null
+}
+export interface VideoSplitEvent {
+  kind: 'started' | 'progress' | 'retry' | 'skipped' | 'completed' | 'failed' | 'cancelled'
+  progressPercent: number
+  attempt: number
+  partsWritten: number
+  message: string
+}

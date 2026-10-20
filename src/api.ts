@@ -1,4 +1,4 @@
-import type { RestoreEvent, RestoreRecord, ScanRequest, ScanSummary, SessionRecord, WashEvent, WashRequest, TaskStatus, VideoTools, VideoInfo, VideoRequest, VideoEvent, VideoTask, VideoFramePage } from './types'
+import type { RestoreEvent, RestoreRecord, ScanRequest, ScanSummary, SessionRecord, WashEvent, WashRequest, TaskStatus, VideoTools, VideoInfo, VideoRequest, VideoEvent, VideoTask, VideoFramePage, VideoSplitRequest, VideoSplitRecord, VideoSplitEvent } from './types'
 
 async function call<T>(command: string, args: Record<string, unknown> = {}, onMessage?: (value: any) => void): Promise<T> {
   const bridge = window.xima
@@ -26,3 +26,8 @@ export const listHistory = () => call<SessionRecord[]>('list_history')
 export const getHistorySession = (sessionId: string) => call<SessionRecord>('get_history_session', { sessionId })
 export const clearHistory = () => call<void>('clear_history')
 export const exportSessionCsv = (sessionId: string, outputPath: string) => call<void>('export_session_csv', { sessionId, outputPath })
+
+export const splitVideoBySize = (request: VideoSplitRequest, onMessage: (event: VideoSplitEvent) => void) =>
+  call<VideoSplitRecord>('split_video', { request }, onMessage)
+export const listSplitTasks = () => call<VideoSplitRecord[]>('list_split_tasks')
+export const openSplitOutput = (taskId: string) => call<void>('open_split_output', { taskId })
