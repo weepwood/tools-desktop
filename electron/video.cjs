@@ -150,7 +150,16 @@ class Video {
     if(!candidate||candidate!==path.resolve(filePath))return false;
     for(const task of await this.list()){
       if(path.dirname(candidate)!==task.outputDir)continue;
-      return (await this.frameFiles(task.outputDir)).some(x=>x.path===candidate);
+      const stat=await fs.lstat(candidate).catch(()=>null);
+      if(!stat?.isFile()||stat.isSymbolicLink()||stat.size<45)return false;
+      const handle=await fs.open(candidate,'r');
+      try{
+        const signature=Buffer.alloc(8),ending=Buffer.alloc(12);
+        await handle.read(signature,0,8,0);
+        await handle.read(ending,0,12,stat.size-12);
+        return signature.equals(Buffer.from('89504e470d0a1a0a','hex')) &&
+          ending.equals(Buffer.from('0000000049454e44ae426082','hex'));
+      }finally{await handle.close();}
     }
     return false;
   }

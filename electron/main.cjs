@@ -9,7 +9,7 @@ const {Video}=require('./video.cjs');
 protocol.registerSchemesAsPrivileged([{scheme:'xima',privileges:{secure:true,standard:true,supportFetchAPI:true,stream:true}}]);
 app.setAppUserModelId('com.weepwood.xima.electron');
 let win,tray,exiting=false,active=null,history,video;
-let trayVisible=true;
+let trayVisible=true,launchHidden=false;
 const status=()=>({running:Boolean(active),kind:active?.kind||null,cancelling:Boolean(active?.controller.signal.aborted)});
 function broadcast(name,payload){if(win&&!win.isDestroyed())win.webContents.send('xima:event',{name,payload});}
 function statusChanged(){broadcast('task-status',status());}
@@ -47,7 +47,7 @@ function createTray(){
   tray.on('double-click',()=>show());
 }
 function destroyTray(){if(tray){tray.destroy();tray=null;}}
-function show(){if(!win||win.isDestroyed())return;win.show();win.focus();}
+function show(){if(!win||win.isDestroyed())return;launchHidden=false;win.show();win.focus();}
 async function quitSafely(){
   if(exiting)return;exiting=true;
   if(active){active.controller.abort();statusChanged();try{await active.promise;}catch{}}
@@ -66,7 +66,7 @@ function createWindow(){
   });
   if(process.env.XIMA_DEV_URL)win.loadURL(process.env.XIMA_DEV_URL);
   else win.loadFile(path.join(__dirname,'..','dist','index.html'));
-  win.once('ready-to-show',()=>{if(!trayVisible||!app.getLoginItemSettings().wasOpenedAtLogin)win.show();});
+  win.once('ready-to-show',()=>{if(!launchHidden)win.show();});
 }
 function wire(){
   ipcMain.on('xima:drag',(e,payload)=>{if(e.sender!==win?.webContents)return;const {type,paths}=payload||{};broadcast('drag-drop',{type,paths:Array.isArray(paths)?paths.filter(x=>typeof x==='string').slice(0,20):[]});});
@@ -75,7 +75,7 @@ function wire(){
     if(typeof command!=='string'||!args||typeof args!=='object')throw Error('参数无效');
     const send=payload=>{if(typeof requestId==='string'&&/^[\da-f-]{36}$/i.test(requestId))broadcast('request:'+requestId,payload);};
     switch(command){
-      case 'frontend_ready':return show();
+      case 'frontend_ready':if(!launchHidden)show();return;
       case 'window_minimize':return win.minimize();
       case 'window_toggle_maximize':return win.isMaximized()?win.unmaximize():win.maximize();
       case 'window_close':return win.close();
@@ -140,7 +140,9 @@ app.whenReady().then(async()=>{
       return new Response(await fs.readFile(file),{headers:{'Content-Type':'image/png','Cache-Control':'private, max-age=3600'}});
     }catch{return new Response('Not found',{status:404});}
   });
-  trayVisible=(await settings())?.showInMenuBar!==false;
+  const saved=await settings();
+  trayVisible=saved?.showInMenuBar!==false;
+  launchHidden=Boolean(saved?.startMinimized && app.getLoginItemSettings().wasOpenedAtLogin && trayVisible);
   wire();createTray();createWindow();
 }).catch(e=>{dialog.showErrorBox('XIMA 启动失败',e.stack||String(e));app.quit();});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin'&&!trayVisible)quitSafely();});
