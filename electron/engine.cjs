@@ -95,9 +95,11 @@ async function scan(request, signal) {
       try {
         const s=await fs.lstat(full);
         if(!s.isFile()||s.isSymbolicLink())continue;
+        const stat=snap(await fs.lstat(full,{bigint:true}));
+        if(!validSize(stat.size))throw Error('文件大小超过允许范围');
         if(request.skipSmall && s.size <= Number(request.minSizeBytes||0)) {result.smallSkipped++;continue;}
         if(ext.size && !ext.has(path.extname(item.name).slice(1).toLowerCase())){result.extensionSkipped++;continue;}
-        files.push({path:full,relativePath:path.relative(root,full),size:s.size});
+        files.push({path:full,relativePath:path.relative(root,full),size:s.size,fileId:stat.fileId,modifiedNs:stat.modifiedNs});
         result.totalBytes+=s.size;
       }catch(error){result.unreadable++;if(result.warnings.length<20)result.warnings.push(full+': '+error.message);}
     }
@@ -105,7 +107,9 @@ async function scan(request, signal) {
   await visit(root,0);
   files.sort((a,b)=>a.relativePath<b.relativePath?-1:a.relativePath>b.relativePath?1:0);
   const h=crypto.createHash('sha256'),u64=n=>{const b=Buffer.alloc(8);b.writeBigUInt64LE(BigInt(n));return b;};
-  for(const file of files){const p=Buffer.from(file.path);h.update(u64(p.length));h.update(p);h.update(u64(file.size));}
+  for(const file of files){const p=Buffer.from(file.path);h.update(u64(p.length));h.update(p);h.update(u64(file.size));
+    for(const item of [file.fileId,file.modifiedNs]){const value=Buffer.from(item);h.update(u64(value.length));h.update(value);}
+  }
   result.fingerprint=h.digest('hex');result.totalFiles=files.length;result.preview=files.slice(0,200);
   return {summary:result,files};
 }
@@ -127,7 +131,9 @@ async function washOne(file,request,signal,journal) {
     const openedPath=await fs.lstat(file.path);
     if(!openedPath.isFile()||openedPath.isSymbolicLink()||statId(openedPath)!==before.fileId)
       throw Error('扫描后文件身份变化，拒绝修改');
-    if(before.size!==file.size) throw Error('扫描后文件大小改变');
+    if(before.size!==file.size || (file.fileId && before.fileId!==file.fileId) ||
+       (file.modifiedNs && before.modifiedNs!==file.modifiedNs))
+      throw Error('扫描后文件的大小、身份或修改时间已变化');
     record.beforeSize=before.size;record.beforeFileId=before.fileId;record.beforeModifiedNs=before.modifiedNs;
     if(request.mode==='recoverable' && request.skipAlreadyWashed && (await tail(handle,before.size,32)).subarray(0,8).equals(MAGIC)){
       record.status='skipped';record.error='文件尾部已有 XIMA 标记。';return record;
