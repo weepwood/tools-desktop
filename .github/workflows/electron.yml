@@ -118,7 +118,7 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows-installer, macos-package, linux-package]
+    needs: [windows-installer, linux-package]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -129,10 +129,6 @@ jobs:
           path: release/windows
       - uses: actions/download-artifact@v4
         with:
-          name: HALO-macOS
-          path: release/macos
-      - uses: actions/download-artifact@v4
-        with:
           name: HALO-Linux
           path: release/linux
       - name: Publish GitHub Release
@@ -140,8 +136,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           mapfile -d '' assets < <(find release -type f -print0)
-          if [ "${#assets[@]}" -lt 6 ]; then
-            echo "Expected Windows, macOS, and Linux release packages"
+          if [ "${#assets[@]}" -lt 4 ]; then
+            echo "Expected Windows and Linux release packages"
             exit 1
           fi
           gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
@@ -149,3 +145,22 @@ jobs:
             --verify-tag \
             --title "HALO $GITHUB_REF_NAME" \
             --generate-notes
+
+  macos-release:
+    if: startsWith(github.ref, 'refs/tags/v') && needs.macos-package.result == 'success'
+    needs: [release, macos-package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: HALO-macOS
+          path: release/macos
+      - name: Attach macOS packages to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" release/macos/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
