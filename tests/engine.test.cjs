@@ -179,3 +179,14 @@ test('malformed journal does not hide unrelated completed sessions',async t=>{
   assert.equal(history.warnings.length,1);
   assert.match(history.warnings[0],/bad-journal/);
 });
+
+test('content sampling detects same-size replacement even if original mtime is restored',async t=>{
+  const {request,file}=await fixture(t);
+  const signal=new AbortController().signal;
+  const start=await scan(request,signal);
+  const before=await fs.stat(file);
+  await fs.writeFile(file,Buffer.alloc(before.size,0x5a));
+  await fs.utimes(file,before.atime,before.mtime);
+  const finish=await scan(request,signal);
+  assert.notEqual(start.summary.fingerprint,finish.summary.fingerprint);
+});
