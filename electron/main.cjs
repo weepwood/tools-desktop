@@ -9,6 +9,8 @@ const {History}=require('./history.cjs');
 const {Video}=require('./video.cjs');
 protocol.registerSchemesAsPrivileged([{scheme:'xima',privileges:{secure:true,standard:true,supportFetchAPI:true,stream:true}}]);
 app.setAppUserModelId('com.weepwood.xima.electron');
+const hasInstanceLock=app.requestSingleInstanceLock();
+if(!hasInstanceLock)app.quit();
 let win,tray,exiting=false,active=null,history,video;
 let trayVisible=true,launchHidden=false;
 const status=()=>({running:Boolean(active),kind:active?.kind||null,cancelling:Boolean(active?.controller.signal.aborted)});
@@ -69,6 +71,7 @@ function devAddress(){
     throw Error('开发服务器必须使用 http://127.0.0.1:1420');
   return url.toString();
 }
+app.on('second-instance',()=>{if(hasInstanceLock&&win&&!win.isDestroyed()){if(win.isMinimized())win.restore();show();}});
 function createWindow(){
   const mac=process.platform==='darwin';
   const development=devAddress();
@@ -89,7 +92,7 @@ function createWindow(){
   win.once('ready-to-show',()=>{if(!launchHidden)win.show();});
 }
 function wire(){
-  ipcMain.on('xima:drag',(e,payload)=>{if(e.sender!==win?.webContents)return;const {type,paths}=payload||{};broadcast('drag-drop',{type,paths:Array.isArray(paths)?paths.filter(x=>typeof x==='string').slice(0,20):[]});});
+  ipcMain.on('xima:drag',(e,payload)=>{if(e.sender!==win?.webContents||e.senderFrame!==win?.webContents.mainFrame)return;const {type,paths}=payload||{};broadcast('drag-drop',{type,paths:Array.isArray(paths)?paths.filter(x=>typeof x==='string').slice(0,20):[]});});
   ipcMain.handle('xima:invoke',async(e,command,args={},requestId='')=>{
     if(e.sender!==win?.webContents||e.senderFrame!==win?.webContents.mainFrame)
       throw Error('未经授权的渲染进程');
@@ -149,6 +152,7 @@ function wire(){
   });
 }
 app.whenReady().then(async()=>{
+  if(!hasInstanceLock)return;
   history=new History(app.getPath('userData'));
   video=new Video(app.getPath('userData'));
   await video.recover();
@@ -167,4 +171,4 @@ app.whenReady().then(async()=>{
   wire();createTray();createWindow();
 }).catch(e=>{dialog.showErrorBox('XIMA 启动失败',e.stack||String(e));app.quit();});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin'&&!trayVisible)quitSafely();});
-app.on('activate',()=>{if(win)show();else createWindow();});
+app.on('activate',()=>{if(!hasInstanceLock)return;if(win)show();else createWindow();});
