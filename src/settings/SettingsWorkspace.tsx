@@ -14,8 +14,8 @@ export function SettingsWorkspace({ onBack }: { onBack: () => void }) {
     if (view === "settings") setCategory(settingsCategory ?? "general");
   }, [view, settingsCategory]);
 
-  useShortcutHandlers(useMemo(
-    () => view === "settings" ? { "open-settings": onBack } : {},
+  useShortcutHandlers(useMemo<Record<string, () => void>>(
+    (): Record<string, () => void> => view === "settings" ? { "open-settings": onBack } : {},
     [onBack, view],
   ));
 
