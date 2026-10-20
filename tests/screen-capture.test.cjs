@@ -72,7 +72,7 @@ test('daily export falls back to a runnable local FFmpeg when the bundled binary
   let usedBinary=null;
   const bundledBinary=path.join('/broken','ffmpeg');
   const systemBinary=path.join('/system/bin',process.platform==='win32'?'ffmpeg.exe':'ffmpeg');
-  const capture=service(root,{resolveBinaries:async()=>({ffmpeg:bundledBinary}),ffmpegSearchPath:['/system/bin'],
+  const capture=service(root,{platform:process.platform,resolveBinaries:async()=>({ffmpeg:bundledBinary}),ffmpegSearchPath:['/system/bin'],
     execBinary:async(file,args)=>{
       if(args[0]==='-version'){if(file===bundledBinary)throw Error('binary cannot start');return {output:'ffmpeg'};}
       usedBinary=file;await fs.writeFile(args.at(-1),Buffer.alloc(128,1));return {output:''};
