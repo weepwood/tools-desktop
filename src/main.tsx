@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import { notifyFrontendReady } from "./lib/tauri";
 import "./styles/global.css";
+import "./styles/electron.css";
 
 // The window starts hidden (see src-tauri). Reveal it only once the app
 // has painted its first frame, so the first thing the user sees is the
