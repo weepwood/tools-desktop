@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { confirm, open, save } from "@tauri-apps/plugin-dialog";
+import { confirm, open, save } from "../lib/dialog";
 import {
   cancelTask,
   clearHistory,

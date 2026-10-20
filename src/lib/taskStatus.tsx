@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { getTaskStatus } from "../api";
 import { isTauri } from "./tauri";
 import type { TaskStatus } from "../types";
@@ -19,7 +18,7 @@ export function TaskStatusProvider({ children }: { children: ReactNode }) {
     let revision = 0;
     let unlisten: (() => void) | undefined;
     void (async () => {
-      const cleanup = await listen<TaskStatus>("task-status", ({ payload }) => {
+      const cleanup = window.xima!.on<TaskStatus>("task-status", (payload) => {
         revision += 1;
         if (active) setStatus(payload);
       });

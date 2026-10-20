@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { convertFileSrc } from "@tauri-apps/api/core";
-import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { open } from "@tauri-apps/plugin-dialog";
+import { fileUrl as convertFileSrc } from "../lib/electron";
+import { open } from "../lib/dialog";
 import { cancelTask, extractVideoFrames, getVideoTaskFrames, listVideoTasks, openVideoOutput, probeVideo, videoOutputSuggestion, videoToolStatus } from "../api";
 import { CloseIcon, FolderIcon, ImageIcon } from "../lib/icons";
 import { usePersistedState } from "../lib/usePersistedState";
@@ -132,19 +131,15 @@ export function VideoScreenshotWorkspace({ active }: { active: boolean }) {
 
   useEffect(() => {
     if (!desktop || !active || busy) { setDragging(false); return; }
-    let current = true;
-    let unlisten: (() => void) | undefined;
-    void getCurrentWebview().onDragDropEvent(({ payload }) => {
-      if (!current) return;
-      if (payload.type === "enter" || payload.type === "over") { setDragging(true); return; }
+    const unlisten = window.xima?.on<{type: string; paths: string[]}>('drag-drop', (payload) => {
+      if (payload.type === 'enter' || payload.type === 'over') { setDragging(true); return; }
       setDragging(false);
-      if (payload.type !== "drop" || lock.current) return;
-      if (payload.paths.length !== 1) { setNotice({ type: "error", text: "请一次拖入一个视频文件。" }); return; }
+      if (payload.type !== 'drop' || lock.current) return;
+      if (payload.paths.length !== 1) { setNotice({ type: 'error', text: '请一次拖入一个视频文件。' }); return; }
       lock.current = true;
       void analyze(payload.paths[0]).finally(() => { lock.current = false; });
-    }).then(cleanup => { if (current) unlisten = cleanup; else cleanup(); })
-      .catch(error => { if (current) setNotice({ type: "error", text: `拖放暂不可用，请点击选择视频：${errorText(error)}` }); });
-    return () => { current = false; unlisten?.(); };
+    });
+    return () => { unlisten?.(); };
   }, [active, desktop, busy]);
 
   async function chooseOutput() {

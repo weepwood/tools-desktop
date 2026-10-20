@@ -76,9 +76,7 @@ async function load(): Promise<void> {
     loadPromise = (async () => {
       try {
         if (isTauri()) {
-          const { load: loadStore } = await import("@tauri-apps/plugin-store");
-          const store = await loadStore(STORE_FILE, { autoSave: true, defaults: {} });
-          const saved = await store.get<Partial<AppSettings>>("settings");
+          const saved = await window.xima!.invoke<Partial<AppSettings> | null>("settings_get", { file: STORE_FILE });
           current = withDefaults(saved);
         } else {
           const raw = localStorage.getItem(FALLBACK_KEY);
@@ -99,9 +97,7 @@ async function persist(next: AppSettings) {
   listeners.forEach((l) => l(current));
   try {
     if (isTauri()) {
-      const { load: loadStore } = await import("@tauri-apps/plugin-store");
-      const store = await loadStore(STORE_FILE, { autoSave: true, defaults: {} });
-      await store.set("settings", next);
+      await window.xima!.invoke("settings_set", { file: STORE_FILE, settings: next });
     } else {
       localStorage.setItem(FALLBACK_KEY, JSON.stringify(next));
     }

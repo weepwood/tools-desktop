@@ -1,96 +1,28 @@
-import { Channel, invoke } from '@tauri-apps/api/core'
-import type {
-  RestoreEvent,
-  RestoreRecord,
-  ScanRequest,
-  ScanSummary,
-  SessionRecord,
-  WashEvent,
-  WashRequest,
-  TaskStatus, VideoTools, VideoInfo, VideoRequest, VideoEvent, VideoTask, VideoFramePage,
-} from './types'
+import type { RestoreEvent, RestoreRecord, ScanRequest, ScanSummary, SessionRecord, WashEvent, WashRequest, TaskStatus, VideoTools, VideoInfo, VideoRequest, VideoEvent, VideoTask, VideoFramePage } from './types'
 
-export async function scanFiles(request: ScanRequest): Promise<ScanSummary> {
-  return invoke<ScanSummary>('scan_files', { request })
+async function call<T>(command: string, args: Record<string, unknown> = {}, onMessage?: (value: any) => void): Promise<T> {
+  const bridge = window.xima
+  if (!bridge) throw new Error('该操作只能在 Electron 桌面应用中执行。')
+  const id = crypto.randomUUID()
+  const unsubscribe = onMessage ? bridge.on('request:' + id, onMessage) : () => {}
+  try { return await bridge.invoke<T>(command, args, id) }
+  finally { unsubscribe() }
 }
 
-export async function washFiles(
-  request: WashRequest,
-  onMessage: (event: WashEvent) => void,
-): Promise<SessionRecord> {
-  const channel = new Channel<WashEvent>()
-  channel.onmessage = onMessage
-  return invoke<SessionRecord>('wash_files', { request, onEvent: channel })
-}
-
-export async function restoreSession(
-  sessionId: string,
-  paths: string[],
-  pathOverrides: Record<string, string>,
-  onMessage: (event: RestoreEvent) => void,
-): Promise<RestoreRecord> {
-  const channel = new Channel<RestoreEvent>()
-  channel.onmessage = onMessage
-  return invoke<RestoreRecord>('restore_session', {
-    request: { sessionId, paths, pathOverrides },
-    onEvent: channel,
-  })
-}
-
-export async function cancelTask(): Promise<boolean> {
-  return invoke<boolean>('cancel_task')
-}
-
-export async function taskRunning(): Promise<boolean> {
-  return invoke<boolean>('task_running')
-}
-
-export function getTaskStatus(): Promise<TaskStatus> {
-  return invoke<TaskStatus>('task_status')
-}
-
-export function videoToolStatus(): Promise<VideoTools> {
-  return invoke<VideoTools>('video_tool_status')
-}
-
-export function probeVideo(videoPath: string): Promise<VideoInfo> {
-  return invoke<VideoInfo>('probe_video', { videoPath })
-}
-
-export function extractVideoFrames(request: VideoRequest, onMessage: (event: VideoEvent) => void): Promise<VideoTask> {
-  const channel = new Channel<VideoEvent>()
-  channel.onmessage = onMessage
-  return invoke<VideoTask>('extract_video_frames', { request, onEvent: channel })
-}
-
-export function listVideoTasks(): Promise<VideoTask[]> {
-  return invoke<VideoTask[]>('list_video_tasks')
-}
-
-export function getVideoTaskFrames(taskId: string, page: number): Promise<VideoFramePage> {
-  return invoke<VideoFramePage>('get_video_task_frames', { taskId, page, pageSize: 24 })
-}
-
-export function openVideoOutput(taskId: string): Promise<void> {
-  return invoke<void>('open_video_output', { taskId })
-}
-
-export function videoOutputSuggestion(videoPath: string, outputParent: string | null): Promise<string> {
-  return invoke<string>('video_output_suggestion', { videoPath, outputParent })
-}
-
-export async function listHistory(): Promise<SessionRecord[]> {
-  return invoke<SessionRecord[]>('list_history')
-}
-
-export async function getHistorySession(sessionId: string): Promise<SessionRecord> {
-  return invoke<SessionRecord>('get_history_session', { sessionId })
-}
-
-export async function clearHistory(): Promise<void> {
-  return invoke<void>('clear_history')
-}
-
-export async function exportSessionCsv(sessionId: string, outputPath: string): Promise<void> {
-  return invoke<void>('export_session_csv', { sessionId, outputPath })
-}
+export const scanFiles = (request: ScanRequest) => call<ScanSummary>('scan_files', { request })
+export const washFiles = (request: WashRequest, onMessage: (event: WashEvent) => void) => call<SessionRecord>('wash_files', { request }, onMessage)
+export const restoreSession = (sessionId: string, paths: string[], pathOverrides: Record<string, string>, onMessage: (event: RestoreEvent) => void) => call<RestoreRecord>('restore_session', { request: { sessionId, paths, pathOverrides } }, onMessage)
+export const cancelTask = () => call<boolean>('cancel_task')
+export const taskRunning = () => call<boolean>('task_running')
+export const getTaskStatus = () => call<TaskStatus>('task_status')
+export const videoToolStatus = () => call<VideoTools>('video_tool_status')
+export const probeVideo = (videoPath: string) => call<VideoInfo>('probe_video', { videoPath })
+export const extractVideoFrames = (request: VideoRequest, onMessage: (event: VideoEvent) => void) => call<VideoTask>('extract_video_frames', { request }, onMessage)
+export const listVideoTasks = () => call<VideoTask[]>('list_video_tasks')
+export const getVideoTaskFrames = (taskId: string, page: number) => call<VideoFramePage>('get_video_task_frames', { taskId, page, pageSize: 24 })
+export const openVideoOutput = (taskId: string) => call<void>('open_video_output', { taskId })
+export const videoOutputSuggestion = (videoPath: string, outputParent: string | null) => call<string>('video_output_suggestion', { videoPath, outputParent })
+export const listHistory = () => call<SessionRecord[]>('list_history')
+export const getHistorySession = (sessionId: string) => call<SessionRecord>('get_history_session', { sessionId })
+export const clearHistory = () => call<void>('clear_history')
+export const exportSessionCsv = (sessionId: string, outputPath: string) => call<void>('export_session_csv', { sessionId, outputPath })
