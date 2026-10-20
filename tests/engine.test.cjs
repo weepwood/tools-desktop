@@ -80,3 +80,57 @@ test('journal keeps pending item following unexpected interruption',async t=>{
   assert.equal(list[0].interrupted,true);
   assert.equal(list[0].files[0].pending,true);
 });
+
+test('full verification never truncates when history SHA-256 is missing',async t=>{
+  const {request,file,history}=await fixture(t);
+  const signal=new AbortController().signal;
+  const washed=await wash({...request,mode:'recoverable',verificationMode:'full',skipAlreadyWashed:true},signal,()=>{},history);
+  assert.equal(washed.success,1);
+  washed.files[0].beforeSha256='';
+  await history.saveSession(washed);
+  const size=(await fs.stat(file)).size;
+  const restored=await restore({sessionId:washed.id,paths:[],pathOverrides:{}},signal,()=>{},history);
+  assert.equal(restored.failed,1);
+  assert.match(restored.files[0].error,/SHA-256/);
+  assert.equal((await fs.stat(file)).size,size);
+});
+test('sampled verification never truncates with absent or malformed samples',async t=>{
+  const {request,file,history}=await fixture(t);
+  const signal=new AbortController().signal;
+  const washed=await wash({...request,mode:'recoverable',verificationMode:'sampled',skipAlreadyWashed:true},signal,()=>{},history);
+  assert.equal(washed.success,1);
+  const size=(await fs.stat(file)).size;
+  washed.files[0].samples=[];
+  await history.saveSession(washed);
+  let restored=await restore({sessionId:washed.id,paths:[],pathOverrides:{}},signal,()=>{},history);
+  assert.equal(restored.failed,1);
+  washed.files[0].samples=[{offset:washed.files[0].beforeSize+1,length:1,sha256:'a'.repeat(64)}];
+  await history.saveSession(washed);
+  restored=await restore({sessionId:washed.id,paths:[],pathOverrides:{}},signal,()=>{},history);
+  assert.equal(restored.failed,1);
+  assert.equal((await fs.stat(file)).size,size);
+});
+test('invalid marker hex cannot cause a file to be truncated',async t=>{
+  const {request,file,history}=await fixture(t);
+  const signal=new AbortController().signal;
+  const washed=await wash({...request,mode:'recoverable',verificationMode:'full',skipAlreadyWashed:true},signal,()=>{},history);
+  const size=(await fs.stat(file)).size;
+  washed.files[0].appendedHex='XX';
+  await history.saveSession(washed);
+  const restored=await restore({sessionId:washed.id,paths:[],pathOverrides:{}},signal,()=>{},history);
+  assert.equal(restored.failed,1);
+  assert.equal((await fs.stat(file)).size,size);
+});
+test('pre-cancelled task never mutates files',async t=>{
+  const {request,file,data,history}=await fixture(t);
+  const abort=new AbortController();abort.abort();
+  await assert.rejects(wash({...request,mode:'recoverable',verificationMode:'fast'},abort.signal,()=>{},history),/停止/);
+  assert.deepEqual(await fs.readFile(file),data);
+});
+test('scan never follows a symbolic-link file',async t=>{
+  const {request,file}=await fixture(t);
+  const linked=path.join(request.rootPath,'linked.mp4');
+  try{await fs.symlink(file,linked);}catch(e){if(['EPERM','EACCES','ENOTSUP'].includes(e.code))return t.skip('symlink unavailable');throw e;}
+  const result=await scan(request,new AbortController().signal);
+  assert.equal(result.files.some(x=>x.path===linked),false);
+});
