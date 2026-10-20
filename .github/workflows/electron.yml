@@ -1,0 +1,50 @@
+name: Electron CI
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - run: npm test
+      - run: npm run build
+  windows-installer:
+    runs-on: windows-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - name: Verify FFmpeg binaries
+        shell: pwsh
+        run: |
+          node -e "const fs=require('fs'); for(const m of ['ffmpeg-static','ffprobe-static']) { const v=require(m); const p=typeof v==='string'?v:v.path; if(!p||!fs.existsSync(p)) throw Error(m+' binary missing: '+p); console.log(m,p); }"
+      - name: Real FFmpeg screenshot smoke test
+        run: node --test tests/video.smoke.cjs
+      - run: npm run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Verify packaged media binaries
+        shell: pwsh
+        run: |
+          $path = "release/win-unpacked/resources/app.asar.unpacked/node_modules"
+          $ffmpeg = Get-ChildItem -Path $path -Recurse -Filter ffmpeg.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          $ffprobe = Get-ChildItem -Path $path -Recurse -Filter ffprobe.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $ffmpeg -or -not $ffprobe) { throw "Packaged FFmpeg/FFprobe files are missing" }
+          Write-Output "Packaged tools: $($ffmpeg.FullName), $($ffprobe.FullName)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: XIMA-Tools-Windows
+          path: release/*
+          if-no-files-found: error

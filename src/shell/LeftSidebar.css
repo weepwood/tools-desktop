@@ -1,0 +1,134 @@
+.left-sidebar {
+  position: relative; /* anchors the resize handle */
+  grid-column: 1;
+  grid-row: 1 / -1;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--color-bg-base);
+}
+
+/* ---- Peek: temporary overlay while hovering the toggle ---- */
+
+.left-sidebar[data-peek="open"],
+.left-sidebar[data-peek="closing"] {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--sidebar-width);
+  z-index: 30; /* above content, below the floating title bar */
+  border-right: 1px solid var(--color-border);
+  box-shadow: 12px 0 32px rgba(0, 0, 0, 0.22);
+}
+
+/* Fade in first, with only a short slide tail. */
+.left-sidebar[data-peek="open"] {
+  animation: sidebar-peek-in 0.16s ease-out;
+}
+
+.left-sidebar[data-peek="closing"] {
+  animation: sidebar-peek-out 0.12s ease-in forwards;
+  pointer-events: none;
+}
+
+@keyframes sidebar-peek-in {
+  0% {
+    opacity: 0;
+    transform: translateX(calc(var(--sidebar-width) * -0.2));
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes sidebar-peek-out {
+  to {
+    opacity: 0;
+    transform: translateX(calc(var(--sidebar-width) * -0.08));
+  }
+}
+
+/* Fixed-width inner wrapper so content doesn't reflow while the
+   grid track animates closed. */
+.left-sidebar-inner {
+  width: var(--sidebar-width);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.left-sidebar-nav {
+  flex: 1;
+  overflow-y: auto;
+  /* Content starts below the floating title bar. */
+  padding: calc(var(--titlebar-height) + var(--space-2)) var(--space-2) var(--space-4);
+  font-size: var(--text-base);
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 5px var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+
+.sidebar-item:hover {
+  background: var(--color-bg-hover);
+}
+
+.left-sidebar-nav > .sidebar-item + .sidebar-item {
+  margin-top: var(--space-2);
+}
+
+.sidebar-item[data-active="true"] {
+  color: var(--color-accent);
+  background: var(--color-bg-active);
+}
+
+.sidebar-item-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.sidebar-item-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-item-hint {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.sidebar-item:hover .sidebar-item-hint {
+  opacity: 1;
+}
+
+.sidebar-item-meta {
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+}
+
+.sidebar-section-title {
+  margin: var(--space-4) var(--space-2) var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+}
+
+.sidebar-empty {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-base);
+  color: var(--color-text-tertiary);
+}

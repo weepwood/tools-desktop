@@ -1,0 +1,61 @@
+/*
+ * Theme palettes.
+ *
+ *   light: accent #339CFF, background #FFFFFF, foreground #1A1C1F
+ *   dark:  accent #0169CC, background #111111, foreground #FCFCFC
+ *
+ * Adding a theme = one new [data-theme="…"] block overriding these
+ * variables. Nothing else in the codebase needs to change.
+ */
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --color-bg-base: #f2f2f2; /* window / sidebar base */
+  --color-bg-surface: #ffffff; /* main content */
+  --color-bg-elevated: #ffffff; /* cards, popovers */
+  --color-bg-inset: #f5f5f5; /* rows inside panels, inputs */
+  --color-bg-hover: rgba(0, 0, 0, 0.05);
+  --color-bg-active: rgba(0, 0, 0, 0.08);
+
+  --color-border: rgba(0, 0, 0, 0.09);
+  --color-border-strong: rgba(0, 0, 0, 0.16);
+
+  --color-text: #1a1c1f;
+  --color-text-secondary: #6e6e73;
+  --color-text-tertiary: #a0a0a5;
+
+  --color-accent: #339cff;
+  --color-accent-text: #ffffff;
+  --color-warning: #d97a2b;
+  --color-danger: #d93a3a;
+  --color-success: #2f9e44;
+
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg-base: #111111; /* window / sidebar base */
+  --color-bg-surface: #212121; /* main content */
+  --color-bg-elevated: #2a2a2a; /* cards, popovers */
+  --color-bg-inset: #2a2a2a; /* rows inside panels, inputs */
+  --color-bg-hover: rgba(255, 255, 255, 0.06);
+  --color-bg-active: rgba(255, 255, 255, 0.1);
+
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+
+  --color-text: #fcfcfc;
+  --color-text-secondary: #a6a6ab;
+  --color-text-tertiary: #6e6e73;
+
+  --color-accent: #0169cc;
+  --color-accent-text: #ffffff;
+  --color-warning: #e08543;
+  --color-danger: #e5534b;
+  --color-success: #46a758;
+
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+}
