@@ -13,6 +13,13 @@ jobs:
         with:
           node-version: '24'
       - run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Provide exact lockfile blob for repository commit
+        shell: bash
+        run: |
+          echo LOCKFILE_BLOB_BEGIN
+          base64 -w 0 package-lock.json
+          echo
+          echo LOCKFILE_BLOB_END
       - uses: actions/upload-artifact@v4
         with:
           name: npm-lockfile
