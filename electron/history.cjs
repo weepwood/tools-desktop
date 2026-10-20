@@ -3,7 +3,7 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 const crypto=require('node:crypto');
 class History {
-  constructor(directory){this.directory=directory;this.historyPath=path.join(directory,'history.json');this.journals=path.join(directory,'journals');}
+  constructor(directory){this.directory=directory;this.historyPath=path.join(directory,'history.json');this.journals=path.join(directory,'journals');this.warnings=[];}
   async ensure(){await fs.mkdir(this.directory,{recursive:true});await fs.mkdir(this.journals,{recursive:true});}
   async atomicWrite(location,content){
     await this.ensure();
@@ -21,11 +21,13 @@ class History {
     return parsed;
   }
   async load(){
+    this.warnings=[];
     const sessions=await this.base();await this.ensure();
     for(const item of await fs.readdir(this.journals,{withFileTypes:true})){
       if(!item.isFile()||!item.name.endsWith('.jsonl'))continue;
       const id=item.name.slice(0,-6);
       if(sessions.some(x=>x.id===id))continue;
+      try {
       const data=await fs.readFile(path.join(this.journals,item.name),'utf8');
       let session=null,files=new Map(),complete=false,truncated=false;
       const lines=data.split('\n');
@@ -55,6 +57,11 @@ class History {
           ? '任务中断或日志最后一行未完整写入；记录已保留，恢复时会校验文件'
           : null;
         sessions.push(session);
+      }
+      }catch(error){
+        const warning='恢复日志 '+item.name+' 格式异常，原始文件已保留：'+error.message;
+        this.warnings.push(warning);
+        console.warn(warning);
       }
     }
     return sessions.sort((a,b)=>b.startedAt.localeCompare(a.startedAt));

@@ -147,3 +147,46 @@ test('incomplete last journal line retains synchronized prepared records',async 
   assert.equal(rows[0].files.length,1);
   assert.equal(rows[0].files[0].pending,true);
 });
+
+test('scan fingerprint changes if file changes without changing its size',async t=>{
+  const {request,file}=await fixture(t);
+  const signal=new AbortController().signal;
+  const first=await scan(request,signal);
+  const info=await fs.stat(file);
+  await fs.writeFile(file,Buffer.alloc(info.size,0x41));
+  const second=await scan(request,signal);
+  assert.notEqual(first.summary.fingerprint,second.summary.fingerprint);
+});
+test('stale fingerprint rejects same-sized changed files',async t=>{
+  const {request,file,data,history}=await fixture(t);
+  const signal=new AbortController().signal;
+  const first=await scan(request,signal);
+  await fs.writeFile(file,Buffer.from(data.map(x=>x^1)));
+  const changed=await fs.readFile(file);
+  await assert.rejects(
+    wash({...request,mode:'recoverable',verificationMode:'sampled',skipAlreadyWashed:true,
+      expectedScanFingerprint:first.summary.fingerprint},signal,()=>{},history),/重新扫描/);
+  assert.deepEqual(await fs.readFile(file),changed);
+});
+
+test('malformed journal does not hide unrelated completed sessions',async t=>{
+  const {history,file,request}=await fixture(t);
+  const signal=new AbortController().signal;
+  const washed=await wash({...request,mode:'recoverable',verificationMode:'full',skipAlreadyWashed:true},signal,()=>{},history);
+  await fs.writeFile(path.join(history.journals,'bad-journal.jsonl'),'{oops}\n');
+  const rows=await history.load();
+  assert(rows.some(x=>x.id===washed.id));
+  assert.equal(history.warnings.length,1);
+  assert.match(history.warnings[0],/bad-journal/);
+});
+
+test('content sampling detects same-size replacement even if original mtime is restored',async t=>{
+  const {request,file}=await fixture(t);
+  const signal=new AbortController().signal;
+  const start=await scan(request,signal);
+  const before=await fs.stat(file);
+  await fs.writeFile(file,Buffer.alloc(before.size,0x5a));
+  await fs.utimes(file,before.atime,before.mtime);
+  const finish=await scan(request,signal);
+  assert.notEqual(start.summary.fingerprint,finish.summary.fingerprint);
+});

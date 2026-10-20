@@ -58,7 +58,7 @@ function execBinary(file,args,signal,timeout=60000,onLine=()=>{},onLog=()=>{}){
   });
 }
 class Video {
-  constructor(userData){this.directory=path.join(userData,'video-tasks');this.userData=userData;}
+  constructor(userData){this.directory=path.join(userData,'video-tasks');this.userData=userData;this.warnings=[];}
   async ensure(){await fs.mkdir(this.directory,{recursive:true});}
   recordPath(id){if(!/^[\da-f-]{36}$/i.test(id))throw Error('任务编号无效');return path.join(this.directory,id+'.json');}
   async save(task){
@@ -70,11 +70,22 @@ class Video {
   }
   async get(id){return JSON.parse(await fs.readFile(this.recordPath(id),'utf8'));}
   async list(){
-    await this.ensure();const tasks=[];
+    await this.ensure();const tasks=[],warnings=[];
     for(const entry of await fs.readdir(this.directory,{withFileTypes:true})){
       if(!entry.isFile()||!entry.name.endsWith('.json'))continue;
-      tasks.push(await this.get(entry.name.slice(0,-5)));
+      const id=entry.name.slice(0,-5);
+      try {
+        const task=await this.get(id);
+        if(!task||task.id!==id||typeof task.startedAt!=='string'||
+          !Number.isFinite(Date.parse(task.startedAt))||typeof task.outputDir!=='string'||
+          !path.isAbsolute(task.outputDir))throw Error('任务字段损坏');
+        tasks.push(task);
+      }catch(error){
+        warnings.push('无法读取 '+entry.name+': '+error.message);
+      }
     }
+    this.warnings=warnings;
+    if(warnings.length)console.warn('部分视频记录不可用，原始文件已保留：'+warnings.join('；'));
     return tasks.sort((a,b)=>b.startedAt.localeCompare(a.startedAt));
   }
   async recover(){

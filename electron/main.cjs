@@ -7,8 +7,11 @@ const {pathToFileURL}=require('node:url');
 const {scan,wash,restore}=require('./engine.cjs');
 const {History}=require('./history.cjs');
 const {Video}=require('./video.cjs');
+const {validateCommand}=require('./ipc-validation.cjs');
 protocol.registerSchemesAsPrivileged([{scheme:'xima',privileges:{secure:true,standard:true,supportFetchAPI:true,stream:true}}]);
 app.setAppUserModelId('com.weepwood.xima.electron');
+const hasInstanceLock=app.requestSingleInstanceLock();
+if(!hasInstanceLock)app.quit();
 let win,tray,exiting=false,active=null,history,video;
 let trayVisible=true,launchHidden=false;
 const status=()=>({running:Boolean(active),kind:active?.kind||null,cancelling:Boolean(active?.controller.signal.aborted)});
@@ -69,6 +72,7 @@ function devAddress(){
     throw Error('开发服务器必须使用 http://127.0.0.1:1420');
   return url.toString();
 }
+app.on('second-instance',()=>{if(hasInstanceLock&&win&&!win.isDestroyed()){if(win.isMinimized())win.restore();show();}});
 function createWindow(){
   const mac=process.platform==='darwin';
   const development=devAddress();
@@ -89,11 +93,11 @@ function createWindow(){
   win.once('ready-to-show',()=>{if(!launchHidden)win.show();});
 }
 function wire(){
-  ipcMain.on('xima:drag',(e,payload)=>{if(e.sender!==win?.webContents)return;const {type,paths}=payload||{};broadcast('drag-drop',{type,paths:Array.isArray(paths)?paths.filter(x=>typeof x==='string').slice(0,20):[]});});
+  ipcMain.on('xima:drag',(e,payload)=>{if(e.sender!==win?.webContents||e.senderFrame!==win?.webContents.mainFrame)return;const {type,paths}=payload||{};broadcast('drag-drop',{type,paths:Array.isArray(paths)?paths.filter(x=>typeof x==='string').slice(0,20):[]});});
   ipcMain.handle('xima:invoke',async(e,command,args={},requestId='')=>{
     if(e.sender!==win?.webContents||e.senderFrame!==win?.webContents.mainFrame)
       throw Error('未经授权的渲染进程');
-    if(typeof command!=='string'||!args||typeof args!=='object')throw Error('参数无效');
+    validateCommand(command,args);
     const send=payload=>{if(typeof requestId==='string'&&/^[\da-f-]{36}$/i.test(requestId))broadcast('request:'+requestId,payload);};
     switch(command){
       case 'frontend_ready':if(!launchHidden)show();return;
@@ -129,6 +133,12 @@ function wire(){
       case 'wash_files':return task('wash',signal=>wash(args.request,signal,send,history));
       case 'restore_session':return task('restore',signal=>restore(args.request,signal,send,history));
       case 'list_history':return history.summaries();
+      case 'storage_diagnostics':{
+        const diagnostics=[];
+        try{await history.load();diagnostics.push(...history.warnings);}catch(error){diagnostics.push('历史索引无法读取：'+error.message);}
+        try{await video.list();diagnostics.push(...video.warnings);}catch(error){diagnostics.push('视频历史无法读取：'+error.message);}
+        return diagnostics;
+      }
       case 'get_history_session':return history.getSession(args.sessionId);
       case 'clear_history':return task('history',()=>history.clear());
       case 'export_session_csv':return history.exportCsv(args.sessionId,args.outputPath);
@@ -149,6 +159,7 @@ function wire(){
   });
 }
 app.whenReady().then(async()=>{
+  if(!hasInstanceLock)return;
   history=new History(app.getPath('userData'));
   video=new Video(app.getPath('userData'));
   await video.recover();
@@ -167,4 +178,4 @@ app.whenReady().then(async()=>{
   wire();createTray();createWindow();
 }).catch(e=>{dialog.showErrorBox('XIMA 启动失败',e.stack||String(e));app.quit();});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin'&&!trayVisible)quitSafely();});
-app.on('activate',()=>{if(win)show();else createWindow();});
+app.on('activate',()=>{if(!hasInstanceLock)return;if(win)show();else createWindow();});

@@ -71,6 +71,19 @@ async function verifySamples(handle, samples, signal) {
     if(actual !== sample.sha256) throw Error('抽样校验不一致，拒绝恢复');
   }
 }
+async function sampleSignature(handle,size,signal){
+  // Bounded content check that also detects quick same-size overwrites on
+  // Windows filesystems with coarse or cached metadata timestamps.
+  const length=Math.min(4096,size);
+  const max=size-length;
+  const positions=[...new Set([0,Math.floor(max/2),max])];
+  const h=crypto.createHash('sha256');
+  for(const offset of positions){
+    const marker=Buffer.alloc(8);marker.writeBigUInt64LE(BigInt(offset));
+    h.update(marker);h.update(await readRange(handle,offset,length,signal));
+  }
+  return h.digest('hex');
+}
 async function scan(request, signal) {
   if(!request || typeof request.rootPath!=='string'||!request.rootPath) throw Error('请指定有效文件夹');
   const root=path.resolve(request.rootPath);
@@ -95,9 +108,22 @@ async function scan(request, signal) {
       try {
         const s=await fs.lstat(full);
         if(!s.isFile()||s.isSymbolicLink())continue;
+        const stat=snap(await fs.lstat(full,{bigint:true}));
+        if(!validSize(stat.size))throw Error('文件大小超过允许范围');
         if(request.skipSmall && s.size <= Number(request.minSizeBytes||0)) {result.smallSkipped++;continue;}
         if(ext.size && !ext.has(path.extname(item.name).slice(1).toLowerCase())){result.extensionSkipped++;continue;}
-        files.push({path:full,relativePath:path.relative(root,full),size:s.size});
+        const handle=await fs.open(full,constants.O_RDONLY | (constants.O_NOFOLLOW||0));
+        let sampleSha256;
+        try{
+          const opened=snap(await handle.stat({bigint:true}));
+          if(opened.size!==stat.size||opened.fileId!==stat.fileId||opened.modifiedNs!==stat.modifiedNs)
+            throw Error('文件在预扫描中发生变化');
+          sampleSha256=await sampleSignature(handle,stat.size,signal);
+          if(!unchanged(opened,snap(await handle.stat({bigint:true}))))
+            throw Error('内容采样期间文件发生变化');
+        }finally{await handle.close();}
+        files.push({path:full,relativePath:path.relative(root,full),size:s.size,
+          fileId:stat.fileId,modifiedNs:stat.modifiedNs,sampleSha256});
         result.totalBytes+=s.size;
       }catch(error){result.unreadable++;if(result.warnings.length<20)result.warnings.push(full+': '+error.message);}
     }
@@ -105,7 +131,9 @@ async function scan(request, signal) {
   await visit(root,0);
   files.sort((a,b)=>a.relativePath<b.relativePath?-1:a.relativePath>b.relativePath?1:0);
   const h=crypto.createHash('sha256'),u64=n=>{const b=Buffer.alloc(8);b.writeBigUInt64LE(BigInt(n));return b;};
-  for(const file of files){const p=Buffer.from(file.path);h.update(u64(p.length));h.update(p);h.update(u64(file.size));}
+  for(const file of files){const p=Buffer.from(file.path);h.update(u64(p.length));h.update(p);h.update(u64(file.size));
+    for(const item of [file.fileId,file.modifiedNs,file.sampleSha256]){const value=Buffer.from(item);h.update(u64(value.length));h.update(value);}
+  }
   result.fingerprint=h.digest('hex');result.totalFiles=files.length;result.preview=files.slice(0,200);
   return {summary:result,files};
 }
@@ -127,7 +155,11 @@ async function washOne(file,request,signal,journal) {
     const openedPath=await fs.lstat(file.path);
     if(!openedPath.isFile()||openedPath.isSymbolicLink()||statId(openedPath)!==before.fileId)
       throw Error('扫描后文件身份变化，拒绝修改');
-    if(before.size!==file.size) throw Error('扫描后文件大小改变');
+    if(before.size!==file.size || (file.fileId && before.fileId!==file.fileId) ||
+       (file.modifiedNs && before.modifiedNs!==file.modifiedNs))
+      throw Error('扫描后文件的大小、身份或修改时间已变化');
+    if(file.sampleSha256 && await sampleSignature(handle,before.size,signal)!==file.sampleSha256)
+      throw Error('扫描后文件采样内容已变化，拒绝写入');
     record.beforeSize=before.size;record.beforeFileId=before.fileId;record.beforeModifiedNs=before.modifiedNs;
     if(request.mode==='recoverable' && request.skipAlreadyWashed && (await tail(handle,before.size,32)).subarray(0,8).equals(MAGIC)){
       record.status='skipped';record.error='文件尾部已有 XIMA 标记。';return record;
