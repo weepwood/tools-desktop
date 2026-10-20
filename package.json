@@ -94,6 +94,7 @@
       ],
       "icon": "assets/icon.png",
       "category": "Utility",
+      "maintainer": "weepwood",
       "artifactName": "HALO-${version}-${arch}.${ext}"
     },
     "portable": {
