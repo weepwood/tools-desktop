@@ -80,13 +80,15 @@ test('gateway links encode the complete native URI as an HTTP fragment',()=>{
 
 test('open and reveal require existing absolute paths and use injected OS actions',async()=>{
   const calls=[];
-  const deps={aliases:{notes:'/tmp/notes.txt'},pathExists:async value=>value==='/tmp/notes.txt',
+  const notesPath=process.platform==='win32'?path.join(os.tmpdir(),'notes.txt'):'/tmp/notes.txt';
+  const deps={aliases:{notes:notesPath},pathExists:async value=>value===notesPath,
     openPath:async value=>calls.push(['open',value]),revealPath:value=>calls.push(['reveal',value])};
   await executeOpenHaloUri('openhalo:notes',deps);
-  await executeOpenHaloUri('openhalo://reveal/%2Ftmp%2Fnotes.txt',deps);
-  assert.deepEqual(calls,[['open','/tmp/notes.txt'],['reveal','/tmp/notes.txt']]);
+  await executeOpenHaloUri(`openhalo://reveal/${encodeURIComponent(notesPath)}`,deps);
+  assert.deepEqual(calls,[['open',notesPath],['reveal',notesPath]]);
   await assert.rejects(()=>executeOpenHaloUri('openhalo:relative.txt',deps),/绝对路径/);
-  await assert.rejects(()=>executeOpenHaloUri('openhalo:/tmp/missing.txt',{
+  const missingPath=path.join(os.tmpdir(),'missing-openhalo-file.txt');
+  await assert.rejects(()=>executeOpenHaloUri(`openhalo:${missingPath}`,{
     ...deps,pathExists:async()=>false,
   }),/路径不存在/);
 });
@@ -96,7 +98,8 @@ test('run requires confirmation each time and never executes after cancellation'
   const deps={pathExists:async()=>true,
     confirmRun:async()=>{confirmCount++;return false;},
     runCommand:async()=>{runCount++;}};
-  const result=await executeOpenHaloUri('openhalo://run/%2Fusr%2Fbin%2Ftrue',deps);
+  const command=process.platform==='win32'?'C:\\Windows\\System32\\where.exe':'/usr/bin/true';
+  const result=await executeOpenHaloUri(`openhalo://run/${encodeURIComponent(command)}`,deps);
   assert.equal(result.status,'cancelled');
   assert.equal(confirmCount,1);
   assert.equal(runCount,0);
@@ -104,11 +107,13 @@ test('run requires confirmation each time and never executes after cancellation'
 
 test('confirmed run starts the parsed executable and arguments',async()=>{
   let launched;
-  await executeOpenHaloUri('openhalo://run/%2Fusr%2Fbin%2Ftool%20--label%20%22hello%20world%22',{
+  const command=process.platform==='win32'?'C:\\HALO\\tool.exe':'/usr/bin/tool';
+  const uri=`openhalo://run/${encodeURIComponent(`${command} --label "hello world"`)}`;
+  await executeOpenHaloUri(uri,{
     pathExists:async()=>true,confirmRun:async()=>true,
     runCommand:async(executable,args)=>{launched={executable,args};},
   });
-  assert.deepEqual(launched,{executable:'/usr/bin/tool',args:['--label','hello world']});
+  assert.deepEqual(launched,{executable:command,args:['--label','hello world']});
 });
 
 test('run rejects executables that are missing or relative paths',async()=>{
