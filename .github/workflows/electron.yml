@@ -2,6 +2,7 @@ name: Electron CI
 on:
   push:
     branches: [main, 'feat/**']
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -36,6 +37,15 @@ jobs:
         run: node --test tests/video.smoke.cjs
       - name: Real FFmpeg size-based video splitting smoke test
         run: node --test tests/split.smoke.cjs
+      - name: Verify release tag matches app version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          $expectedTag = "v$version"
+          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+            throw "Release tag $env:GITHUB_REF_NAME must match package version $expectedTag"
+          }
       - run: npm run dist:win
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -52,3 +62,30 @@ jobs:
           name: HALO-Windows
           path: release/*.exe
           if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: windows-installer
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: HALO-Windows
+          path: release
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          shopt -s nullglob
+          assets=(release/*.exe)
+          if [ "${#assets[@]}" -lt 2 ]; then
+            echo "Expected both installer and portable executable in release/"
+            exit 1
+          fi
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "HALO $GITHUB_REF_NAME" \
+            --generate-notes

@@ -28,6 +28,10 @@ npm run dist:win  # NSIS 安装器 + Portable
 
 Windows x64 产物：`HALO-Setup-<version>-x64.exe`、`HALO-Portable-<version>-x64.exe`。CI 通过后在 GitHub Actions Artifacts 的 `HALO-Windows` 中下载。
 
+### 自动发布 Windows 版本
+
+更新 `package.json` 中的版本号并同步 `package-lock.json` 后，推送匹配的版本标签（例如 `v1.0.1`）。GitHub Actions 会运行检查、构建 Windows 安装版和便携版，并自动创建 GitHub Release 上传两个 `.exe` 文件。标签版本需与 `package.json` 中的版本一致。
+
 ## 功能
 
 | 功能 | 实现 |
