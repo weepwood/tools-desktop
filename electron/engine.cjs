@@ -11,6 +11,8 @@ const hash = data => crypto.createHash('sha256').update(data).digest('hex');
 const statId = stat => String(stat.dev) + ':' + String(stat.ino);
 const snap = stat => ({ size: Number(stat.size), fileId: statId(stat), modifiedNs: String(stat.mtimeNs ?? BigInt(Math.round(Number(stat.mtimeMs) * 1e6))) });
 const unchanged = (a,b) => a.size === b.size && a.fileId === b.fileId && a.modifiedNs === b.modifiedNs;
+const validSize = n => Number.isSafeInteger(n) && n >= 0;
+const validHash = n => typeof n === 'string' && /^[a-f0-9]{64}$/i.test(n);
 const checkAbort = signal => { if (signal?.aborted) throw Error('任务已停止。'); };
 
 function marker(mode) {
@@ -115,13 +117,16 @@ function fileRecord(file,mode) {
 }
 async function washOne(file,request,signal,journal) {
   const start=Date.now(),record=fileRecord(file,request.verificationMode||'sampled');
-  let handle, didWrite=false;
+  let handle, writeAttempted=false;
   try{
     checkAbort(signal);
     const st=await fs.lstat(file.path);
     if(!st.isFile()||st.isSymbolicLink())throw Error('不是普通文件，拒绝修改');
     handle=await fs.open(file.path,constants.O_RDWR | (constants.O_NOFOLLOW||0));
     const before=snap(await handle.stat({bigint:true}));
+    const openedPath=await fs.lstat(file.path);
+    if(!openedPath.isFile()||openedPath.isSymbolicLink()||statId(openedPath)!==before.fileId)
+      throw Error('扫描后文件身份变化，拒绝修改');
     if(before.size!==file.size) throw Error('扫描后文件大小改变');
     record.beforeSize=before.size;record.beforeFileId=before.fileId;record.beforeModifiedNs=before.modifiedNs;
     if(request.mode==='recoverable' && request.skipAlreadyWashed && (await tail(handle,before.size,32)).subarray(0,8).equals(MAGIC)){
@@ -136,8 +141,8 @@ async function washOne(file,request,signal,journal) {
     checkAbort(signal);
     record.pending=true;
     await journal({type:'prepared',file:{...record,error:'写入结果尚未确认'}});
+    writeAttempted=true; // a write may modify some bytes before throwing
     const {bytesWritten}=await handle.write(bytes,0,bytes.length,before.size);
-    didWrite=true;
     if(bytesWritten!==bytes.length)throw Error('尾部写入不完整');
     await handle.sync();
     const after=snap(await handle.stat({bigint:true}));
@@ -147,13 +152,24 @@ async function washOne(file,request,signal,journal) {
     record.status='success';record.pending=false;record.error=null;
     return record;
   }catch(error){
-    if(didWrite && handle) {
-      try {await handle.truncate(record.beforeSize);await handle.sync();}
-      catch(e){ record.error='回滚失败：'+e.message+'；原错误：'+error.message; }
+    if(writeAttempted && handle) {
+      // Never blindly truncate a file modified by another process. Keep the
+      // write-ahead journal and require manual inspection in ambiguous cases.
+      try {
+        const state=snap(await handle.stat({bigint:true}));
+        const extra=state.size-record.beforeSize;
+        const bytes=Buffer.from(record.appendedHex,'hex');
+        const tailMatches=extra>=0 && extra<=bytes.length &&
+          (await tail(handle,state.size,extra)).equals(bytes.subarray(0,extra));
+        if(state.fileId!==record.beforeFileId || !tailMatches)
+          throw Error('文件状态已变化，无法安全回滚');
+        if(extra) {await handle.truncate(record.beforeSize);await handle.sync();}
+        writeAttempted=false;
+      }catch(e){record.error='自动回滚未完成：'+e.message+'；原错误：'+error.message;}
     }
     record.status='failed';
     if(!record.error)record.error=error.message;
-    record.pending=didWrite && record.error.startsWith('回滚失败');
+    record.pending=writeAttempted;
     return record;
   }finally{if(handle)await handle.close().catch(()=>{});record.durationMs=Date.now()-start;}
 }
@@ -189,25 +205,53 @@ async function restoreOne(file,override,signal){
   let handle;
   try{
     checkAbort(signal);
-    const markerBytes=Buffer.from(file.appendedHex||'','hex');
-    if(!markerBytes.length||markerBytes.length!==file.afterSize-file.beforeSize) throw Error('恢复记录中的尾部标记无效');
+    if(!validSize(file.beforeSize)||!validSize(file.afterSize)||file.afterSize<=file.beforeSize)
+      throw Error('恢复记录中的原始大小无效');
+    if(typeof file.appendedHex!=='string'||!/^(?:[a-f0-9]{2})+$/i.test(file.appendedHex))
+      throw Error('恢复记录中的尾部标记不是有效十六进制');
+    const markerBytes=Buffer.from(file.appendedHex,'hex');
+    if(!markerBytes.length||markerBytes.length!==file.afterSize-file.beforeSize)
+      throw Error('恢复记录中的尾部标记长度无效');
     const st=await fs.lstat(target);
     if(!st.isFile()||st.isSymbolicLink())throw Error('恢复目标不是普通文件');
     handle=await fs.open(target,constants.O_RDWR | (constants.O_NOFOLLOW||0));
     const current=snap(await handle.stat({bigint:true}));
+    const openedPath=await fs.lstat(target);
+    if(!openedPath.isFile()||openedPath.isSymbolicLink()||statId(openedPath)!==current.fileId)
+      throw Error('恢复目标文件身份变化，拒绝修改');
     out.restoredSize=current.size;
     if(!resolvedPath && file.afterFileId && current.fileId!==file.afterFileId)throw Error('文件身份发生变化，拒绝恢复');
     if(current.size!==file.afterSize && current.size!==file.beforeSize)throw Error('文件大小不符，拒绝恢复');
     const already=current.size===file.beforeSize;
     if(!already && !(await tail(handle,current.size,markerBytes.length)).equals(markerBytes))throw Error('尾部标记不同，拒绝截断');
-    if(file.verificationMode==='full' && file.beforeSha256) {
+    if(file.verificationMode==='full') {
+      if(!validHash(file.beforeSha256))throw Error('完整校验记录缺少有效 SHA-256，拒绝恢复');
       const [original]=await digestFile(handle,file.beforeSize,signal);
-      if(original!==file.beforeSha256)throw Error('完整 SHA-256 校验不匹配');
+      if(original.toLowerCase()!==file.beforeSha256.toLowerCase())
+        throw Error('完整 SHA-256 校验不匹配');
       out.restoredSha256=original;
-    }else if(file.verificationMode==='sampled' && file.samples?.length){
-      await verifySamples(handle,file.samples,signal);
-    }else if(resolvedPath && file.verificationMode==='fast')throw Error('快速校验记录无法安全验证移动后的文件');
+    }else if(file.verificationMode==='sampled'){
+      const samples=file.samples;
+      if(!Array.isArray(samples)||(!samples.length && file.beforeSize>0))
+        throw Error('抽样校验记录缺少校验样本，拒绝恢复');
+      for(const sample of samples){
+        if(!validSize(sample.offset)||!validSize(sample.length)||sample.length<1 ||
+          sample.offset+sample.length>file.beforeSize||!validHash(sample.sha256))
+          throw Error('抽样校验记录损坏，拒绝恢复');
+      }
+      await verifySamples(handle,samples,signal);
+    }else if(file.verificationMode==='fast'){
+      if(resolvedPath)throw Error('快速校验记录无法安全验证移动后的文件');
+      if(file.afterModifiedNs && current.modifiedNs!==file.afterModifiedNs)
+        throw Error('文件修改时间已改变，快速校验拒绝恢复');
+    }else throw Error('未知的文件校验方式，拒绝恢复');
     if(already){out.status='skipped';out.error='文件已经处于洗码前状态。';return out;}
+    checkAbort(signal);
+    // Recheck the opened file descriptor immediately before truncation.
+    if(!unchanged(current,snap(await handle.stat({bigint:true}))))
+      throw Error('恢复校验期间文件发生变化，拒绝截断');
+    if(!(await tail(handle,current.size,markerBytes.length)).equals(markerBytes))
+      throw Error('尾部标记在校验期间发生变化，拒绝截断');
     checkAbort(signal);
     await handle.truncate(file.beforeSize);await handle.sync();
     out.restoredSize=file.beforeSize;out.status='success';
