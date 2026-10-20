@@ -3,6 +3,7 @@ export interface TaskStatus {
   running: boolean
   kind: string | null
   cancelling: boolean
+  progress: Record<string, unknown> | null
 }
 
 export interface VideoTools {
@@ -99,9 +100,21 @@ export interface ScanSummary {
   smallSkipped: number
   extensionSkipped: number
 }
+export interface DuplicateGroup {
+  sizeBytes: number
+  sha256: string
+  files: { path: string; relativePath: string }[]
+}
+export interface DuplicateResult {
+  groups: DuplicateGroup[]
+  scannedFiles: number
+  unreadable: number
+  warnings: string[]
+}
 
 export interface WashRequest extends ScanRequest {
   expectedScanFingerprint?: string
+  backupDirectory?: string | null
   mode: WashMode
   verificationMode: VerificationMode
   skipAlreadyWashed: boolean
@@ -115,6 +128,7 @@ export interface FileSample {
 
 export interface FileRecord {
   pending?: boolean
+  backupPath?: string | null
   path: string
   relativePath: string
   status: FileStatus
@@ -167,6 +181,7 @@ export interface SessionRecord {
   startedAt: string
   finishedAt: string
   rootPath: string
+  backupDirectory?: string | null
   mode: WashMode
   verificationMode: VerificationMode
   total: number
@@ -218,6 +233,10 @@ export interface VideoSplitRecord {
   maxSizeGb: number
   maxSizeBytes: number
   outputDir: string | null
+  manifestPath?: string | null
+  mergedPath?: string | null
+  mergeStatus?: 'completed' | 'cancelled' | 'failed' | null
+  mergeError?: string | null
   status: VideoSplitStatus
   parts: VideoSplitPart[]
   attempts: number

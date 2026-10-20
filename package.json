@@ -1,7 +1,8 @@
 {
   "name": "halo-desktop",
+  "productName": "HALO",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "HALO — 本地文件洗码、校验恢复与视频工具的桌面工作台",
   "main": "electron/main.cjs",
   "license": "MIT",
@@ -12,6 +13,8 @@
     "test": "node --test tests/*.test.cjs",
     "preview": "vite preview",
     "dist:win": "npm run build && electron-builder --win nsis portable --publish never",
+    "dist:mac": "npm run build && electron-builder --mac dmg zip --publish never",
+    "dist:linux": "npm run build && electron-builder --linux AppImage deb --publish never",
     "dist:dir": "npm run build && electron-builder --dir"
   },
   "dependencies": {
@@ -68,11 +71,30 @@
       "icon": "assets/icon.ico"
     },
     "nsis": {
+      "shortcutName": "HALO",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "artifactName": "HALO-Setup-${version}-${arch}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.utilities",
+      "artifactName": "HALO-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "assets/icon.png",
+      "category": "Utility",
+      "artifactName": "HALO-${version}-${arch}.${ext}"
     },
     "portable": {
       "artifactName": "HALO-Portable-${version}-${arch}.${ext}"

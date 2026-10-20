@@ -137,11 +137,83 @@ async function scan(request, signal) {
   result.fingerprint=h.digest('hex');result.totalFiles=files.length;result.preview=files.slice(0,200);
   return {summary:result,files};
 }
+async function findDuplicates(request,signal,send=()=>{}){
+  const {files,summary}=await scan(request,signal);
+  const groups=new Map();let completed=0;
+  for(const file of files){
+    checkAbort(signal);
+    let handle;
+    try{
+      handle=await fs.open(file.path,constants.O_RDONLY|(constants.O_NOFOLLOW||0));
+      const before=snap(await handle.stat({bigint:true}));
+      if(before.size!==file.size||before.fileId!==file.fileId||before.modifiedNs!==file.modifiedNs)
+        throw Error('文件在扫描后发生变化');
+      const digest=crypto.createHash('sha256'),buffer=Buffer.alloc(1024*1024);let offset=0;
+      while(offset<before.size){
+        checkAbort(signal);
+        const {bytesRead}=await handle.read(buffer,0,Math.min(buffer.length,before.size-offset),offset);
+        if(!bytesRead)throw Error('读取文件时遇到意外结尾');
+        digest.update(buffer.subarray(0,bytesRead));offset+=bytesRead;
+      }
+      if(!unchanged(before,snap(await handle.stat({bigint:true}))))throw Error('完整校验期间文件发生变化');
+      const sha256=digest.digest('hex'),key=before.size+':'+sha256;
+      const group=groups.get(key)||{sizeBytes:before.size,sha256,files:[]};
+      group.files.push({path:file.path,relativePath:file.relativePath});groups.set(key,group);
+    }catch(error){
+      if(signal?.aborted)throw error;
+      if(summary.warnings.length<20)summary.warnings.push(file.path+': '+error.message);
+      summary.unreadable++;
+    }finally{if(handle)await handle.close().catch(()=>{});}
+    completed++;
+    send({kind:'progress',completed,total:files.length,currentFile:file.relativePath,result:null,message:'正在计算完整 SHA-256'});
+  }
+  const duplicates=[...groups.values()].filter(group=>group.files.length>1)
+    .sort((a,b)=>b.sizeBytes-a.sizeBytes);
+  return {groups:duplicates,scannedFiles:files.length,unreadable:summary.unreadable,warnings:summary.warnings};
+}
 function fileRecord(file,mode) {
   return {pending:false,path:file.path,relativePath:file.relativePath,status:'failed',error:null,
     beforeSize:file.size,afterSize:file.size,beforeSha256:'',afterSha256:'',appendedHex:'',
     durationMs:0,verificationMode:mode,samples:[],beforeFileId:null,afterFileId:null,
     beforeModifiedNs:null,afterModifiedNs:null};
+}
+async function createBackupCopy(handle,backupRoot,file,sourceState,signal){
+  const relativeFile=file.relativePath;
+  if(path.isAbsolute(relativeFile)||relativeFile.split(/[\\/]/).includes('..'))
+    throw Error('文件备份路径超出备份目录');
+  const segments=relativeFile.split(/[\\/]/).filter(Boolean);
+  if(!segments.length)throw Error('文件备份路径无效');
+  let directory=backupRoot;
+  for(const segment of segments.slice(0,-1)){
+    directory=path.join(directory,segment);
+    try{await fs.mkdir(directory);}catch(error){if(error.code!=='EEXIST')throw error;}
+    const info=await fs.lstat(directory);
+    if(!info.isDirectory()||info.isSymbolicLink())throw Error('备份目录中存在非普通文件夹，已停止备份');
+  }
+  const destination=path.join(directory,segments.at(-1));
+  const output=await fs.open(destination,'wx',0o600);
+  let completed=false;
+  try{
+    const buffer=Buffer.alloc(1024*1024);
+    let offset=0;
+    while(offset<sourceState.size){
+      checkAbort(signal);
+      const {bytesRead}=await handle.read(buffer,0,Math.min(buffer.length,sourceState.size-offset),offset);
+      if(!bytesRead)throw Error('备份读取提前结束');
+      await output.write(buffer,0,bytesRead,offset);
+      offset+=bytesRead;
+    }
+    await output.sync();
+    const backupStat=await output.stat();
+    if(backupStat.size!==sourceState.size)throw Error('备份大小校验失败');
+    if(!unchanged(sourceState,snap(await handle.stat({bigint:true}))))
+      throw Error('备份期间源文件发生变化');
+    completed=true;
+    return destination;
+  }finally{
+    await output.close();
+    if(!completed)await fs.rm(destination,{force:true}).catch(()=>{});
+  }
 }
 async function washOne(file,request,signal,journal) {
   const start=Date.now(),record=fileRecord(file,request.verificationMode||'sampled');
@@ -173,6 +245,8 @@ async function washOne(file,request,signal,journal) {
     if(record.verificationMode==='sampled')record.samples=await samplesFor(handle,before.size,signal);
     else if(record.verificationMode==='full') [record.beforeSha256,record.afterSha256]=await digestFile(handle,before.size,signal,bytes);
     else if(record.verificationMode!=='fast') throw Error('无效的校验方式');
+    if(request.backupRunDirectory)
+      record.backupPath=await createBackupCopy(handle,request.backupRunDirectory,file,before,signal);
     if(!unchanged(before,snap(await handle.stat({bigint:true}))))throw Error('文件在校验时发生改变，已拒绝写入');
     checkAbort(signal);
     record.pending=true;
@@ -212,14 +286,27 @@ async function washOne(file,request,signal,journal) {
 async function wash(request,signal,send,history) {
   const {summary,files}=await scan(request,signal);
   if(request.expectedScanFingerprint && request.expectedScanFingerprint!==summary.fingerprint)throw Error('文件范围或大小已变化，请重新扫描。');
-  const session={id:uuid(),startedAt:now(),finishedAt:'',rootPath:request.rootPath,mode:request.mode,
+  const sessionId=uuid(),startedAt=now();
+  let backupRunDirectory=null;
+  if(request.backupDirectory){
+    const root=path.resolve(request.rootPath),backup=path.resolve(request.backupDirectory);
+    const rel=path.relative(root,backup);
+    if(rel===''||(!path.isAbsolute(rel)&&rel!=='..'&&!rel.startsWith('..'+path.sep)))
+      throw Error('备份目录不能位于正在处理的文件夹内。');
+    const backupInfo=await fs.lstat(backup);
+    if(!backupInfo.isDirectory()||backupInfo.isSymbolicLink())throw Error('备份位置必须是普通文件夹。');
+    const timestamp=startedAt.replace(/[:.]/g,'-');
+    backupRunDirectory=path.join(backup,`HALO-备份-${timestamp}-${sessionId}`);
+    await fs.mkdir(backupRunDirectory,{recursive:false});
+  }
+  const session={id:sessionId,startedAt,finishedAt:'',rootPath:request.rootPath,backupDirectory:backupRunDirectory,mode:request.mode,
     verificationMode:request.verificationMode||'sampled',total:files.length,success:0,failed:0,skipped:0,bytesAppended:0,cancelled:false,historyError:null,restoreRuns:[],files:[],interrupted:false,taskError:null};
   const journal=await history.startJournal(session);
   send({kind:'started',completed:0,total:files.length,currentFile:null,result:null,message:'共找到 '+files.length+' 个候选文件。'});
   for(const [index,file] of files.entries()){
     if(signal.aborted){session.cancelled=true;break;}
     send({kind:'progress',completed:index,total:files.length,currentFile:file.relativePath,result:null,message:null});
-    const record=await washOne(file,request,signal,journal);
+    const record=await washOne(file,{...request,backupRunDirectory},signal,journal);
     session.files.push(record);
     session[record.status]++;
     if(record.status==='success')session.bytesAppended+=record.afterSize-record.beforeSize;
@@ -314,4 +401,4 @@ async function restore(request,signal,send,history){
   try{await history.saveSession(session);}catch(error){record.historyError=error.message;}
   return record;
 }
-module.exports={marker,scan,wash,restore,digestFile,samplesFor,restoreOne,readRange,MAGIC};
+module.exports={marker,scan,findDuplicates,wash,restore,digestFile,samplesFor,restoreOne,readRange,MAGIC};

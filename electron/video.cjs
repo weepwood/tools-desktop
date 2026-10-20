@@ -159,6 +159,38 @@ class Video {
     const index=Math.min(Math.max(0,Number(page)||0),Math.max(0,Math.ceil(frames.length/size)-1));
     return {frames:frames.slice(index*size,(index+1)*size),total:frames.length,page:index,pageSize:size};
   }
+  async contactSheet(id,page,pageSize,signal,send=()=>{}){
+    const task=await this.get(id);
+    const outputDir=await fs.realpath(task.outputDir);
+    if(outputDir!==task.outputDir||!(await fs.lstat(outputDir)).isDirectory())throw Error('截图输出目录已更改');
+    const result=await this.page(id,page,pageSize);
+    if(!result.frames.length)throw Error('此页没有可导出的截图。');
+    const tools=await resolveBinaries(),listPath=path.join(outputDir,'.contact-'+crypto.randomUUID()+'.ffconcat');
+    let outputPath=null;
+    const quote=value=>"'"+value.replace(/\\/g,'/').replace(/'/g,"'\\''")+"'";
+    try{
+      const lines=result.frames.map(frame=>{
+        const full=path.join(outputDir,path.basename(frame.path));
+        if(full!==frame.path)throw Error('截图路径无效。');
+        return 'file '+quote(full)+'\n';
+      }).join('');
+      await fs.writeFile(listPath,'ffconcat version 1.0\n'+lines,{flag:'wx'});
+      for(let n=1;n<=1000;n++){
+        const candidate=path.join(outputDir,'contact-sheet-'+String(page+1).padStart(3,'0')+(n===1?'':'_'+n)+'.png');
+        try{await fs.lstat(candidate);}catch(error){if(error.code==='ENOENT'){outputPath=candidate;break;}throw error;}
+      }
+      if(!outputPath)throw Error('联系表重名文件过多。');
+      send({kind:'progress',framesWritten:0,progressPercent:10,elapsedMs:0,message:'正在组合当前页截图'});
+      await execBinary(tools.ffmpeg,['-hide_banner','-nostdin','-n','-v','warning','-f','concat','-safe','0','-i',listPath,
+        '-vf','scale=480:270:force_original_aspect_ratio=decrease,pad=480:270:(ow-iw)/2:(oh-ih)/2,tile=4x6:padding=12:margin=12:color=white',
+        '-frames:v','1','-f','image2',outputPath],signal,0);
+      const stat=await fs.lstat(outputPath);
+      if(!stat.isFile()||stat.isSymbolicLink()||stat.size<45)throw Error('无法创建有效联系表。');
+      send({kind:'completed',framesWritten:result.frames.length,progressPercent:100,elapsedMs:0,message:'联系表已导出：'+outputPath});
+      return {path:outputPath,frames:result.frames.length};
+    }catch(error){if(outputPath)await fs.rm(outputPath,{force:true}).catch(()=>{});throw error;}
+    finally{await fs.rm(listPath,{force:true}).catch(()=>{});}
+  }
   async imageAllowed(filePath){
     if(!/^keyframes_\d{3,}\.png$/.test(path.basename(filePath)))return false;
     const candidate=await fs.realpath(filePath).catch(()=>null);

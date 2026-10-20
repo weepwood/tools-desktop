@@ -15,9 +15,9 @@
   height: 100%;
   min-width: 0;
   overflow: hidden;
-  border-top-left-radius: var(--radius-lg);
+  border-radius: inherit;
   color: var(--color-text);
-  background: var(--color-bg-surface);
+  background: var(--color-bg-canvas);
   animation: halo-fade-in var(--dur-3) var(--ease-standard) both;
 }
 
@@ -25,10 +25,13 @@
 
 .halo-wash-layout {
   display: grid;
-  grid-template-columns: minmax(272px, 316px) minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 328px) minmax(0, 1fr);
+  gap: 14px;
   flex: 1;
   min-height: 0;
+  padding: 0 14px 14px;
   overflow: hidden;
+  background: var(--color-bg-canvas);
 }
 
 /* ------------------------------------------------------------- 左：设置 */
@@ -38,14 +41,14 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  border-right: 1px solid var(--color-border);
-  background: var(--color-bg-surface);
+  overflow: hidden;
+  background: transparent;
 }
 
 .halo-options-body {
   flex: 1;
   min-height: 0;
-  padding: 18px 18px 22px;
+  padding: 16px 14px 18px;
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -55,7 +58,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .halo-options-head h2 {
@@ -80,11 +83,35 @@
   color: var(--color-success);
 }
 
+.wash-scan-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.wash-scan-summary[data-ready="true"] { color: var(--halo-success-text); }
+.wash-scan-summary .halo-live-dot { flex: 0 0 auto; background: currentColor; }
+.wash-advanced-options { margin-top: 12px; }
+.wash-advanced-options > summary { padding: 2px 0; }
+.wash-advanced-options > :not(summary) { margin-left: 2px; margin-right: 2px; }
+.wash-advanced-options > .halo-options-section { margin-top: 12px; padding-top: 12px; }
+.wash-tool-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wash-tool-heading .halo-section-label { margin: 0; }
+
 .halo-options-section {
-  margin-top: 18px;
-  padding-top: 16px;
+  margin-top: 16px;
+  padding-top: 14px;
   border-top: 1px solid var(--color-border);
 }
+
+.halo-wash-profiles { display: grid; gap: 8px; margin: 12px 0 4px; }
+.halo-profile-row { display: flex; gap: 6px; min-width: 0; }
+.halo-profile-row input,
+.halo-profile-row select { flex: 1 1 auto; min-width: 0; }
+.halo-profile-row button { flex: 0 0 auto; }
 
 .halo-options-section .halo-field:first-of-type {
   margin-top: 10px;
@@ -127,6 +154,53 @@
 .halo-folder-picker:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.halo-backup-field,
+.halo-scan-preview,
+.halo-duplicates {
+  margin-top: 14px;
+}
+
+.halo-duplicates > p { margin: 0 0 8px; font-size: var(--text-xs); line-height: var(--leading-normal); }
+.halo-duplicate-list { display: grid; gap: 10px; margin: 8px 0 0; padding: 0; list-style: none; }
+.halo-duplicate-list li { display: grid; gap: 3px; padding: 8px; border-radius: var(--radius-sm); background: var(--color-bg-subtle); font-size: var(--text-xs); }
+.halo-duplicate-list li span { overflow: hidden; color: var(--color-text-secondary); text-overflow: ellipsis; white-space: nowrap; }
+
+.halo-backup-field > small {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.halo-scan-preview ul {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.halo-scan-preview li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.halo-scan-preview li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.halo-scan-preview li small {
+  flex: 0 0 auto;
+  font-size: inherit;
 }
 
 .halo-folder-glyph {
@@ -186,18 +260,23 @@
 .halo-results-column {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
-  padding: 16px;
+  padding: 0;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: var(--color-bg-canvas);
+  background: transparent;
 }
 
 .halo-scan-card,
 .halo-task-card {
   flex-shrink: 0;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .halo-scan-state {
@@ -437,8 +516,15 @@
 .halo-results-card {
   display: flex;
   flex-direction: column;
-  flex: 1 0 auto;
+  flex: 1 1 auto;
   min-height: 360px;
+  border-radius: var(--radius-lg);
+}
+
+.halo-options > .halo-action-footer {
+  padding: 12px 14px 14px;
+  border-top: 0;
+  background: transparent;
 }
 
 .halo-card.flush > .halo-card-heading {
@@ -528,10 +614,6 @@
   .halo-wash-layout {
     grid-template-columns: minmax(252px, 288px) minmax(0, 1fr);
   }
-
-  .halo-results-column {
-    padding: 12px;
-  }
 }
 
 @media (max-width: 760px) {
@@ -551,13 +633,13 @@
 @container (max-width: 720px) {
   .halo-wash-layout {
     display: block;
+    padding: 0 12px 12px;
     overflow: auto;
   }
 
   .halo-options {
     min-height: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 14px;
   }
 
   .halo-options-body {

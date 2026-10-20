@@ -17,17 +17,16 @@
   justify-content: space-between;
   gap: var(--space-5);
   width: 100%;
-  min-height: 72px;
+  min-height: 78px;
   margin: 0;
-  padding: 14px var(--space-5);
-  border-bottom: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-bg-surface) 86%, transparent);
-  backdrop-filter: blur(12px) saturate(1.1);
+  padding: 16px 24px 14px;
+  border-bottom: 0;
+  background: var(--color-bg-canvas);
 }
 
 .halo-page-header h1 {
-  margin: 0 0 3px;
-  font-size: var(--text-xl);
+  margin: 0 0 4px;
+  font-size: var(--text-title);
   font-weight: var(--weight-strong);
   letter-spacing: var(--tracking-tight);
 }
@@ -153,6 +152,7 @@
   /* A card must read as a card even on the padded canvas: hairline + a
      one-pixel shadow, no heavy elevation at rest. */
   box-shadow: var(--elev-1);
+  background-clip: padding-box;
   transition:
     border-color var(--dur-2) var(--ease-standard),
     box-shadow var(--dur-3) var(--ease-standard);
@@ -229,7 +229,7 @@
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   color: var(--color-text);
-  background: var(--color-bg-inset);
+  background: var(--color-bg-surface);
   outline: none;
   transition:
     border-color var(--dur-2) var(--ease-standard),
@@ -406,12 +406,14 @@
   display: grid;
   gap: var(--space-2);
   width: min(480px, calc(100% - 40px));
-  max-height: calc(100% - 24px);
-  overflow: auto;
+  overflow: visible;
+  isolation: isolate;
   pointer-events: none;
 }
 
 .halo-notice {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -420,13 +422,21 @@
   padding: 10px 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  overflow: hidden;
+  background-clip: padding-box;
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
   overflow-wrap: anywhere;
   pointer-events: auto;
   background: var(--color-bg-elevated);
   box-shadow: var(--elev-3);
-  animation: halo-slide-in-right var(--dur-3) var(--ease-emphasized) both;
+  /* Keep the toast on the normal paint layer; Chromium can show a square
+     compositor edge around transformed, rounded popovers on Windows. */
+  animation: halo-fade-in var(--dur-3) var(--ease-standard) both;
+}
+
+.halo-notice button:focus-visible {
+  outline-offset: -2px;
 }
 
 .halo-notice > span {
@@ -435,17 +445,17 @@
 
 .halo-notice.info {
   border-color: var(--color-accent-border);
-  background: color-mix(in srgb, var(--color-accent-weak) 60%, var(--color-bg-elevated));
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-elevated));
 }
 
 .halo-notice.success {
   border-color: color-mix(in srgb, var(--color-success) 34%, var(--color-border));
-  background: color-mix(in srgb, var(--color-success-weak) 70%, var(--color-bg-elevated));
+  background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg-elevated));
 }
 
 .halo-notice.error {
   border-color: color-mix(in srgb, var(--color-danger) 34%, var(--color-border));
-  background: color-mix(in srgb, var(--color-danger-weak) 70%, var(--color-bg-elevated));
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-bg-elevated));
 }
 
 .halo-notice button {
@@ -491,7 +501,7 @@
   align-items: center;
   gap: 5px;
   padding: 3px 7px;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-full);
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
   white-space: nowrap;
@@ -941,6 +951,9 @@
 }
 
 .halo-safety-note-critical {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   margin: 0 0 10px;
   padding: 8px 10px;
   border-left: 2px solid var(--color-warning);
@@ -948,6 +961,28 @@
   background: var(--color-warning-weak);
   color: var(--halo-warning-text);
   font-size: var(--text-sm);
+}
+
+.halo-safety-note-dismiss {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  margin: -2px -4px -2px auto;
+  border-radius: var(--radius-xs);
+  color: inherit;
+  opacity: 0.72;
+}
+
+.halo-safety-note-dismiss:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  opacity: 1;
+}
+
+.halo-safety-note-dismiss svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* ============================================================ 崩溃兜底 */

@@ -4,6 +4,7 @@ import {
   cancelTask,
   clearHistory,
   exportSessionCsv,
+  findDuplicateFiles,
   listHistory,
   restoreSession,
   scanFiles,
@@ -11,6 +12,7 @@ import {
 } from "../../api";
 import type {
   FileRecord,
+  DuplicateResult,
   RestoreEvent,
   ScanRequest,
   ScanSummary,
@@ -56,6 +58,7 @@ export interface ResultCounts {
 export function useWashController() {
   /* ------------------------------------------------------------ settings */
   const [rootPath, setRootPath] = usePersistedState("halo:root", "");
+  const [backupDirectory, setBackupDirectory] = usePersistedState("halo:backup-directory", "");
   const [extensionInput, setExtensionInput] = usePersistedState(
     "halo:extensions",
     DEFAULT_EXTENSIONS.join(", "),
@@ -89,6 +92,8 @@ export function useWashController() {
   const [restoring, setRestoring] = useState(false);
   const [restoringSessionId, setRestoringSessionId] = useState("");
   const [scanSummary, setScanSummary] = useState<ScanSummary | null>(null);
+  const [duplicateResult, setDuplicateResult] = useState<DuplicateResult | null>(null);
+  const [findingDuplicates, setFindingDuplicates] = useState(false);
   const [currentSession, setCurrentSession] = useState<SessionRecord | null>(null);
   const [liveResults, setLiveResults] = useState<FileRecord[]>([]);
   const [progressCompleted, setProgressCompleted] = useState(0);
@@ -115,7 +120,7 @@ export function useWashController() {
   const historyRequest = useRef(0);
 
   const externalTaskRunning = taskStatus.running && !running && !restoring && !scanning;
-  const busy = running || restoring || scanning || confirming || taskStatus.running;
+  const busy = running || restoring || scanning || findingDuplicates || confirming || taskStatus.running;
 
   const extensions = useMemo(
     () => [
@@ -176,7 +181,7 @@ export function useWashController() {
   }
 
   function buildWashRequest(): WashRequest {
-    return { ...buildScanRequest(), mode, verificationMode, skipAlreadyWashed };
+    return { ...buildScanRequest(), mode, verificationMode, skipAlreadyWashed, backupDirectory: backupDirectory || null };
   }
 
   function showNotice(type: Notice["type"], text: string) {
@@ -247,6 +252,21 @@ export function useWashController() {
     }
   }
 
+  async function chooseBackupFolder() {
+    if (busy || actionLock.current) return;
+    actionLock.current = true;
+    setConfirming(true);
+    try {
+      const selected = await open({ title: "选择原文件备份位置", directory: true, multiple: false });
+      if (typeof selected === "string") setBackupDirectory(selected);
+    } catch (error) {
+      showNotice("error", normalizeError(error));
+    } finally {
+      actionLock.current = false;
+      setConfirming(false);
+    }
+  }
+
   async function handleScan() {
     if (busy || actionLock.current) return;
     if (!rootPath) return showNotice("error", "请先选择文件夹。");
@@ -269,6 +289,22 @@ export function useWashController() {
     }
   }
 
+  async function handleFindDuplicates() {
+    if (busy || actionLock.current) return;
+    if (!rootPath) return showNotice("error", "请先选择文件夹。");
+    actionLock.current = true;
+    setFindingDuplicates(true);
+    setDuplicateResult(null);
+    showNotice("info", "正在完整读取候选文件并计算 SHA-256；大文件可能需要一些时间。");
+    try {
+      const result = await findDuplicateFiles(buildScanRequest(), () => {});
+      setDuplicateResult(result);
+      const copies = result.groups.reduce((count, group) => count + group.files.length - 1, 0);
+      showNotice("success", `查找完成：发现 ${result.groups.length} 组重复文件，可清理副本 ${copies} 个（未删除文件）。`);
+    } catch(error) { showNotice("error", normalizeError(error)); }
+    finally { setFindingDuplicates(false); actionLock.current = false; }
+  }
+
   async function handleStart() {
     if (busy || actionLock.current) return;
     if (!rootPath) return showNotice("error", "请先选择文件夹。");
@@ -288,7 +324,7 @@ export function useWashController() {
         return;
       }
       const accepted = await confirm(
-        `将处理 ${summary.totalFiles} 个文件，共 ${formatBytes(summary.totalBytes)}。${summary.unreadable ? `\n有 ${summary.unreadable} 个项目无法读取，将被忽略。` : ""}\n\n校验方式：${verificationLabel(request.verificationMode)}。${verificationDescription(request.verificationMode)}\n\n洗码会直接修改原文件。恢复记录不是备份。是否继续？`,
+        `将处理 ${summary.totalFiles} 个文件，共 ${formatBytes(summary.totalBytes)}。${summary.unreadable ? `\n有 ${summary.unreadable} 个项目无法读取，将被忽略。` : ""}\n\n校验方式：${verificationLabel(request.verificationMode)}。${verificationDescription(request.verificationMode)}\n\n${backupDirectory ? `处理前会将原文件复制到「${backupDirectory}」下的新备份目录。` : "洗码会直接修改原文件；恢复记录不是备份，当前未启用额外备份。"} 是否继续？`,
         { title: "确认执行洗码", kind: "warning" },
       );
       if (!accepted) return;
@@ -535,6 +571,8 @@ export function useWashController() {
     // settings + derived
     rootPath,
     setRootPath,
+    backupDirectory,
+    setBackupDirectory,
     extensionInput,
     setExtensionInput,
     recursive,
@@ -565,6 +603,8 @@ export function useWashController() {
     externalTaskRunning,
     // data
     scanSummary,
+    duplicateResult,
+    findingDuplicates,
     currentSession,
     liveResults,
     progressCompleted,
@@ -585,7 +625,9 @@ export function useWashController() {
     notice,
     // actions
     chooseFolder,
+    chooseBackupFolder,
     handleScan,
+    handleFindDuplicates,
     handleStart,
     handleCancel,
     loadHistory,

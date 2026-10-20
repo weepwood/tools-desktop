@@ -52,11 +52,11 @@
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  padding-top: var(--titlebar-height); /* room under the floating title bar */
-  background: var(--color-bg-surface);
-  border-left: 1px solid var(--color-border);
+  padding: calc(var(--titlebar-height) + 10px) 12px 12px;
+  overflow: hidden;
+  background: var(--color-bg-base);
 }
 
 .app-shell[data-left-open="false"] .app-shell-main {
-  border-left-color: transparent;
+  padding-left: 12px;
 }

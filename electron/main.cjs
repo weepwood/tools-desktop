@@ -3,25 +3,30 @@ const {app,BrowserWindow,ipcMain,dialog,Tray,Menu,nativeImage,Notification,proto
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const crypto=require('node:crypto');
+const {execFile}=require('node:child_process');
+const {promisify}=require('node:util');
 const {pathToFileURL}=require('node:url');
-const {scan,wash,restore}=require('./engine.cjs');
+const {scan,findDuplicates,wash,restore}=require('./engine.cjs');
 const {History}=require('./history.cjs');
 const {Video}=require('./video.cjs');
 const {SplitService}=require('./split.cjs');
 const {validateCommand}=require('./ipc-validation.cjs');
 protocol.registerSchemesAsPrivileged([{scheme:'halo',privileges:{secure:true,standard:true,supportFetchAPI:true,stream:true}}]);
-app.setAppUserModelId('com.weepwood.halo.electron');
+app.setName('HALO');
+if(process.platform==='win32')app.setAppUserModelId('com.weepwood.halo.electron');
 const hasInstanceLock=app.requestSingleInstanceLock();
 if(!hasInstanceLock)app.quit();
 let win,tray,exiting=false,active=null,history,video,split;
-let trayVisible=true,launchHidden=false;
-const status=()=>({running:Boolean(active),kind:active?.kind||null,cancelling:Boolean(active?.controller.signal.aborted)});
+let trayVisible=true,launchHidden=false,shutdownPlan=null;
+const execFileAsync=promisify(execFile);
+const shutdownSchedulePath=()=>path.join(app.getPath('userData'),'shutdown-schedule.json');
+const status=()=>({running:Boolean(active),kind:active?.kind||null,cancelling:Boolean(active?.controller.signal.aborted),progress:active?.progress||null});
 function broadcast(name,payload){if(win&&!win.isDestroyed())win.webContents.send('halo:event',{name,payload});}
 function statusChanged(){broadcast('task-status',status());}
 async function task(kind,fn){
   if(active)throw Error('已有任务正在执行：'+active.kind);
   const controller=new AbortController();
-  const holder={kind,controller,promise:null};
+  const holder={kind,controller,promise:null,progress:null,lastProgressBroadcast:0};
   active=holder;statusChanged();
   try {const promise=fn(controller.signal);holder.promise=promise;return await promise;}
   finally{if(active===holder)active=null;statusChanged();}
@@ -45,6 +50,122 @@ function saveSettings(value){
     catch(error){await fs.rm(temporary,{force:true});throw error;}
   });
   return settingsWrite;
+}
+async function readShutdownSchedule(){
+  const file=shutdownSchedulePath();
+  try{
+    const parsed=JSON.parse(await fs.readFile(file,'utf8'));
+    if(Number.isSafeInteger(parsed.scheduledAt)&&parsed.scheduledAt>Date.now()&&
+      (!parsed.platform||parsed.platform===process.platform))
+      return {scheduledAt:parsed.scheduledAt,action:parsed.action==='power-on'?'power-on':'shutdown'};
+    await fs.rm(file,{force:true});
+  }catch(error){
+    if(error.code==='ENOENT')return null;
+    // A damaged cache must not prevent the desktop app from starting.
+    await fs.rm(file,{force:true}).catch(()=>{});
+  }
+  return null;
+}
+function macScheduleDate(scheduledAt){
+  const date=new Date(scheduledAt);
+  const pad=value=>String(value).padStart(2,'0');
+  return `${pad(date.getMonth()+1)}/${pad(date.getDate())}/${pad(date.getFullYear()%100)} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+async function runMacPowerCommand(args){
+  const command=`pmset ${args.map(value=>`'${String(value).replace(/'/g,"'\\''")}'`).join(' ')}`;
+  const script=`do shell script "${command.replace(/\\/g,'\\\\').replace(/"/g,'\\"')}" with administrator privileges`;
+  return execFileAsync('osascript',['-e',script],{windowsHide:true});
+}
+async function runLinuxPrivileged(program,args){
+  return execFileAsync('pkexec',[program,...args],{windowsHide:true});
+}
+async function findLinuxCommand(name){
+  const candidates=name==='shutdown'
+    ? ['/usr/sbin/shutdown','/sbin/shutdown','/usr/bin/shutdown','/bin/shutdown']
+    : ['/usr/sbin/rtcwake','/sbin/rtcwake','/usr/bin/rtcwake','/bin/rtcwake'];
+  for(const candidate of candidates){try{await fs.access(candidate);return candidate;}catch{}}
+  throw Error(`未找到系统命令 ${name}。`);
+}
+async function shutdownCapabilities(){
+  if(process.platform==='win32')return {platform:'win32',canShutdown:true,canPowerOn:false};
+  if(process.platform==='darwin')return {platform:'darwin',canShutdown:true,canPowerOn:true};
+  if(process.platform==='linux'){
+    let canShutdown=false,canPowerOn=false;
+    try{await findLinuxCommand('shutdown');canShutdown=true;}catch{}
+    try{
+      const rtcwake=await findLinuxCommand('rtcwake');
+      await execFileAsync(rtcwake,['--version'],{windowsHide:true});
+      await fs.access('/dev/rtc0');
+      canPowerOn=true;
+    }catch{}
+    return {platform:'linux',canShutdown,canPowerOn};
+  }
+  return {platform:process.platform,canShutdown:false,canPowerOn:false};
+}
+async function scheduleShutdown(scheduledAt,action='shutdown'){
+  if(!['shutdown','power-on'].includes(action))throw Error('电源计划类型无效。');
+  const capabilities=await shutdownCapabilities();
+  if(action==='shutdown'&&!capabilities.canShutdown)throw Error('当前平台不支持定时关机。');
+  if(action==='power-on'&&!capabilities.canPowerOn)throw Error('当前设备不支持定时开机或未检测到 RTC 闹钟。');
+  if(!Number.isSafeInteger(scheduledAt))throw Error('关机时间无效。');
+  let effectiveScheduledAt=scheduledAt;
+  const seconds=Math.ceil((scheduledAt-Date.now())/1000);
+  if(seconds<60)throw Error('计划时间至少需要在 1 分钟之后。');
+  if(seconds>315360000)throw Error('电源计划不能超过 10 年。');
+  if(shutdownPlan&&shutdownPlan.scheduledAt>Date.now())throw Error('已有一个电源计划，请先取消后再重新安排。');
+  if(process.platform==='linux'&&action==='shutdown')
+    effectiveScheduledAt=Date.now()+Math.max(1,Math.ceil(seconds/60))*60_000;
+  const file=shutdownSchedulePath();
+  await fs.mkdir(path.dirname(file),{recursive:true});
+  await fs.writeFile(file,JSON.stringify({scheduledAt:effectiveScheduledAt,action,platform:process.platform}));
+  try{
+    if(process.platform==='win32'){
+      if(action!=='shutdown')throw Error('Windows 无法通过通用系统接口从完全关机状态定时开机。');
+      await execFileAsync('shutdown.exe',['/s','/t',String(seconds)],{windowsHide:true});
+    }else if(process.platform==='darwin'){
+      const type=action==='power-on'?'wakeorpoweron':'shutdown';
+      await runMacPowerCommand(['schedule',type,macScheduleDate(scheduledAt),'HALO']);
+    }else if(process.platform==='linux'){
+      if(action==='shutdown'){
+        const minutes=Math.max(1,Math.ceil(seconds/60));
+          await runLinuxPrivileged(await findLinuxCommand('shutdown'),['--poweroff','--no-wall',`+${minutes}`]);
+          effectiveScheduledAt=Date.now()+minutes*60_000;
+      }else{
+          const rtcwake=await findLinuxCommand('rtcwake');
+          const {stdout}=await execFileAsync(rtcwake,['-m','show'],{windowsHide:true});
+        if(!/alarm:\s*off/i.test(stdout))throw Error('RTC 闹钟当前已被占用，请先在系统中检查现有唤醒计划。');
+          await runLinuxPrivileged(rtcwake,['-m','no','-t',String(Math.floor(scheduledAt/1000))]);
+      }
+    }else throw Error('当前平台暂不支持电源计划。');
+    if(effectiveScheduledAt!==scheduledAt)
+      await fs.writeFile(file,JSON.stringify({scheduledAt:effectiveScheduledAt,action,platform:process.platform})).catch(()=>{});
+  }
+  catch(error){await fs.rm(file,{force:true});throw Error('安排关机失败：'+error.message);}
+  shutdownPlan={scheduledAt:effectiveScheduledAt,action};
+  return shutdownPlan;
+}
+async function cancelShutdown(){
+  if(!shutdownPlan)return false;
+  const {scheduledAt,action}=shutdownPlan;
+  if(process.platform==='win32')await execFileAsync('shutdown.exe',['/a'],{windowsHide:true});
+  else if(process.platform==='darwin'){
+    const type=action==='power-on'?'wakeorpoweron':'shutdown';
+    await runMacPowerCommand(['schedule','cancel',type,macScheduleDate(scheduledAt),'HALO']);
+  }else if(process.platform==='linux'){
+    if(action==='shutdown')await runLinuxPrivileged(await findLinuxCommand('shutdown'),['-c']);
+    else{
+      const rtcwake=await findLinuxCommand('rtcwake');
+      const {stdout}=await execFileAsync(rtcwake,['-m','show'],{windowsHide:true});
+      const match=stdout.match(/alarm:\s*on\s+(.+)/i);
+      const alarmAt=match?Date.parse(match[1]):NaN;
+      if(!Number.isFinite(alarmAt)||Math.abs(alarmAt-scheduledAt)>5000)
+        throw Error('RTC 闹钟已变化，为避免取消其他程序的闹钟，未执行清除。');
+      await runLinuxPrivileged(rtcwake,['-m','disable']);
+    }
+  }
+  shutdownPlan=null;
+  await fs.rm(shutdownSchedulePath(),{force:true});
+  return true;
 }
 function createTray(){
   if(tray||!trayVisible)return;
@@ -104,7 +225,14 @@ function wire(){
     if(e.sender!==win?.webContents||e.senderFrame!==win?.webContents.mainFrame)
       throw Error('未经授权的渲染进程');
     validateCommand(command,args);
-    const send=payload=>{if(typeof requestId==='string'&&/^[\da-f-]{36}$/i.test(requestId))broadcast('request:'+requestId,payload);};
+    const send=payload=>{
+      if(active){
+        active.progress=payload;
+        const terminal=['completed','cancelled','failed','skipped'].includes(payload?.kind)||payload?.progressPercent===100;
+        if(terminal||Date.now()-active.lastProgressBroadcast>=150){active.lastProgressBroadcast=Date.now();statusChanged();}
+      }
+      if(typeof requestId==='string'&&/^[\da-f-]{36}$/i.test(requestId))broadcast('request:'+requestId,payload);
+    };
     switch(command){
       case 'frontend_ready':if(!launchHidden)show();return;
       case 'window_minimize':return win.minimize();
@@ -116,6 +244,9 @@ function wire(){
       case 'set_menu_bar_visible':trayVisible=Boolean(args.visible);if(trayVisible)createTray();else destroyTray();return;
       case 'settings_get':return await settings();
       case 'settings_set':return await saveSettings(args.settings);
+      case 'get_shutdown_schedule':return {...await shutdownCapabilities(),plan:shutdownPlan};
+      case 'schedule_shutdown':return await scheduleShutdown(args.scheduledAt,args.action);
+      case 'cancel_shutdown':return await cancelShutdown();
       case 'task_running':return Boolean(active);
       case 'task_status':return status();
       case 'cancel_task':if(!active)return false;active.controller.abort();statusChanged();return true;
@@ -136,6 +267,7 @@ function wire(){
         return result.response===0;
       }
       case 'scan_files':return task('scan',async signal=>(await scan(args.request,signal)).summary);
+      case 'find_duplicates':return task('duplicates',signal=>findDuplicates(args.request,signal,send));
       case 'wash_files':return task('wash',signal=>wash(args.request,signal,send,history));
       case 'restore_session':return task('restore',signal=>restore(args.request,signal,send,history));
       case 'list_history':return history.summaries();
@@ -154,6 +286,7 @@ function wire(){
       case 'extract_video_frames':return task('video',signal=>video.extract(args.request,signal,send));
       case 'list_video_tasks':return video.list();
       case 'split_video':return task('video-split',signal=>split.split(args.request,signal,send));
+      case 'merge_split_task':return task('video-merge',signal=>split.merge(args.taskId,signal,send));
       case 'list_split_tasks':return split.list();
       case 'open_split_output':{
         const record=await split.get(args.taskId);
@@ -163,6 +296,7 @@ function wire(){
         const error=await shell.openPath(dir);if(error)throw Error(error);return;
       }
       case 'get_video_task_frames':return video.page(args.taskId,args.page,args.pageSize);
+      case 'export_contact_sheet':return task('contact-sheet',signal=>video.contactSheet(args.taskId,args.page,args.pageSize,signal,send));
       case 'open_video_output':{
         const record=await video.get(args.taskId);
         const dir=await fs.realpath(record.outputDir);
@@ -190,6 +324,7 @@ app.whenReady().then(async()=>{
     }catch{return new Response('Not found',{status:404});}
   });
   const saved=await settings();
+  shutdownPlan=await readShutdownSchedule();
   trayVisible=saved?.showInMenuBar!==false;
   launchHidden=Boolean(saved?.startMinimized && app.getLoginItemSettings().wasOpenedAtLogin && trayVisible);
   wire();createTray();createWindow();

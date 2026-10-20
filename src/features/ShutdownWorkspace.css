@@ -1,0 +1,121 @@
+.shutdown-workspace {
+  border-radius: inherit;
+}
+
+.shutdown-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-6);
+}
+
+.shutdown-content > .halo-card {
+  width: min(100%, 620px);
+  margin: 0 auto;
+}
+
+.shutdown-mode-row,
+.shutdown-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 44px;
+}
+
+.shutdown-field {
+  margin-top: var(--space-4);
+}
+
+.shutdown-label,
+.shutdown-field > span:first-child {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.shutdown-input {
+  min-height: var(--control-height);
+  padding: 0 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+}
+
+.shutdown-input:focus-visible {
+  border-color: var(--halo-focus-color);
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.shutdown-hours-input {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.shutdown-hours-input .shutdown-input {
+  width: 100px;
+}
+
+.shutdown-muted {
+  margin: var(--space-4) 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.shutdown-active {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.shutdown-status-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--color-success);
+  box-shadow: 0 0 0 4px var(--color-success-weak);
+}
+
+.shutdown-active-details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.shutdown-active-details strong {
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+}
+
+.shutdown-active-details span,
+.shutdown-notice {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.shutdown-notice {
+  width: min(100%, 620px);
+  margin: var(--space-3) auto 0;
+}
+
+@media (max-width: 560px) {
+  .shutdown-content {
+    padding: var(--space-4);
+  }
+
+  .shutdown-mode-row,
+  .shutdown-field {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

@@ -15,6 +15,7 @@ function scan(r){
 }
 function wash(r){
   scan(r);
+  check(r.backupDirectory===undefined||r.backupDirectory===null||absolute(r.backupDirectory),'备份目录');
   check(['recoverable','legacy'].includes(r.mode),'洗码模式');
   check(['fast','sampled','full'].includes(r.verificationMode),'校验模式');
   check(flag(r.skipAlreadyWashed),'重复文件设置');
@@ -23,7 +24,8 @@ function wash(r){
 }
 const emptyCommands=new Set(['window_minimize','window_toggle_maximize','window_close',
   'is_autostart_enabled','task_running','task_status','cancel_task',
-  'list_history','clear_history','storage_diagnostics','video_tool_status','list_video_tasks','list_split_tasks']);
+  'list_history','clear_history','storage_diagnostics','video_tool_status','list_video_tasks','list_split_tasks',
+  'get_shutdown_schedule','cancel_shutdown']);
 function validateCommand(command,args={}){
   check(typeof command==='string'&&command.length<=80,'命令');
   check(object(args),'参数对象');
@@ -40,6 +42,9 @@ function validateCommand(command,args={}){
       check(flag(args.enabled)&&flag(args.minimized),'自启动');return;
     case 'set_menu_bar_visible':
       check(flag(args.visible),'托盘');return;
+    case 'schedule_shutdown':
+      check(Number.isSafeInteger(args.scheduledAt)&&args.scheduledAt>0&&
+        (args.action===undefined||['shutdown','power-on'].includes(args.action)),'电源计划');return;
     case 'settings_get':return;
     case 'settings_set':
       check(object(args.settings)&&flag(args.settings.showInMenuBar)&&
@@ -62,6 +67,7 @@ function validateCommand(command,args={}){
     case 'dialog_confirm':
       check(typeof args.message==='string'&&args.message.length<=8192,'确认内容');return;
     case 'scan_files':scan(args.request);return;
+    case 'find_duplicates':scan(args.request);return;
     case 'wash_files':wash(args.request);return;
     case 'restore_session':{
       const r=args.request;
@@ -86,8 +92,12 @@ function validateCommand(command,args={}){
     case 'get_video_task_frames':
       check(uuid(args.taskId)&&Number.isSafeInteger(args.page)&&args.page>=0&&
         Number.isSafeInteger(args.pageSize)&&args.pageSize>=1&&args.pageSize<=24,'截图分页');return;
+    case 'export_contact_sheet':
+      check(uuid(args.taskId)&&Number.isSafeInteger(args.page)&&args.page>=0&&
+        Number.isSafeInteger(args.pageSize)&&args.pageSize>=1&&args.pageSize<=24,'联系表导出');return;
     case 'open_video_output':check(uuid(args.taskId),'截图任务编号');return;
     case 'open_split_output':check(uuid(args.taskId),'分片任务编号');return;
+    case 'merge_split_task':check(uuid(args.taskId),'分片任务编号');return;
     case 'split_video':{
       const r=args.request;
       check(object(r)&&absolute(r.videoPath)&&

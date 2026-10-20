@@ -17,16 +17,17 @@
   color-scheme: light;
 
   /* surfaces — cool greys, four levels of depth */
-  --color-bg-base: #eceef4; /* window chrome / sidebar */
-  --color-bg-surface: #ffffff; /* main content */
-  --color-bg-elevated: #ffffff; /* cards, popovers */
-  --color-bg-inset: #f4f6fa; /* rows inside panels, inputs, table head */
-  --color-bg-hover: rgba(18, 24, 45, 0.045);
-  --color-bg-active: rgba(18, 24, 45, 0.08);
-  --color-bg-canvas: #f7f8fc; /* padded scroll areas behind cards */
+  --color-bg-base: #f0f2f6; /* Kumo-inspired outer canvas */
+  --color-bg-surface: #ffffff; /* default layer */
+  --color-bg-elevated: #ffffff; /* raised cards and popovers */
+  --color-bg-inset: #f5f6f8; /* recessed controls and table heads */
+  --color-bg-subtle: #f5f6f8;
+  --color-bg-hover: rgba(18, 24, 45, 0.04);
+  --color-bg-active: rgba(18, 24, 45, 0.075);
+  --color-bg-canvas: #f7f8fa; /* page canvas behind layered cards */
 
-  --color-border: rgba(18, 24, 45, 0.085);
-  --color-border-strong: rgba(18, 24, 45, 0.16);
+  --color-border: rgba(18, 24, 45, 0.075);
+  --color-border-strong: rgba(18, 24, 45, 0.14);
 
   /* text */
   --color-text: #151821;
@@ -81,16 +82,17 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --color-bg-base: #0a0c11; /* window chrome / sidebar */
-  --color-bg-surface: #101319; /* main content */
-  --color-bg-elevated: #171b23; /* cards, popovers */
-  --color-bg-inset: #1a1f28; /* rows inside panels, inputs, table head */
-  --color-bg-hover: rgba(255, 255, 255, 0.055);
-  --color-bg-active: rgba(255, 255, 255, 0.09);
-  --color-bg-canvas: #0d1016;
+  --color-bg-base: #0d1015; /* outer canvas */
+  --color-bg-surface: #13171e; /* default layer */
+  --color-bg-elevated: #191e26; /* raised cards and popovers */
+  --color-bg-inset: #1b2028; /* recessed controls and table heads */
+  --color-bg-subtle: #1b2028;
+  --color-bg-hover: rgba(255, 255, 255, 0.05);
+  --color-bg-active: rgba(255, 255, 255, 0.085);
+  --color-bg-canvas: #10141a;
 
-  --color-border: rgba(255, 255, 255, 0.085);
-  --color-border-strong: rgba(255, 255, 255, 0.15);
+  --color-border: rgba(255, 255, 255, 0.075);
+  --color-border-strong: rgba(255, 255, 255, 0.14);
 
   --color-text: #eef0f6;
   --color-text-secondary: #9aa2b5;

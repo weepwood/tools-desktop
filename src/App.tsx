@@ -7,6 +7,7 @@ import { SettingsWorkspace } from "./settings/SettingsWorkspace";
 import { HaloWorkspace } from "./features/HaloWorkspace";
 import { VideoScreenshotWorkspace } from "./features/VideoScreenshotWorkspace";
 import { VideoSplitWorkspace } from "./features/VideoSplitWorkspace";
+import { ShutdownWorkspace } from "./features/ShutdownWorkspace";
 import { TaskStatusProvider } from "./lib/taskStatus";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import type { HaloSection } from "./shell/LeftSidebar";
@@ -39,7 +40,7 @@ function CurrentView() {
   return (
     <div className="halo-shell-root">
       <AppShell activeSection={section} onSelectSection={selectSection}>
-        <KeptView visible={!settingsOpen && section !== "video" && section !== "split"}>
+        <KeptView visible={!settingsOpen && (section === "wash" || section === "history")}>
           <HaloWorkspace section={section === "history" ? "history" : "wash"} onOpenWash={() => selectSection("wash")} />
         </KeptView>
         <KeptView visible={!settingsOpen && section === "video"}>
@@ -47,6 +48,9 @@ function CurrentView() {
         </KeptView>
         <KeptView visible={!settingsOpen && section === "split"}>
           <VideoSplitWorkspace active={!settingsOpen && section === "split"} />
+        </KeptView>
+        <KeptView visible={!settingsOpen && section === "shutdown"}>
+          <ShutdownWorkspace active={!settingsOpen && section === "shutdown"} />
         </KeptView>
         <KeptView visible={settingsOpen}>
           <SettingsWorkspace onBack={closeSettings} />

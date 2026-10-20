@@ -184,6 +184,10 @@ class SplitService {
           }
           await fs.rmdir(attemptDir);
           record.parts=parts;record.status='completed';
+          record.manifestPath=path.join(dir,'split-manifest.json');
+          const manifest={schemaVersion:1,taskId:id,videoName:record.videoName,sourceBytes:record.sourceBytes,
+            maxSizeBytes,createdAt:new Date().toISOString(),parts:parts.map((part,index)=>({index:index+1,name:part.name,sizeBytes:part.sizeBytes}))};
+          await this.writeAtomic(record.manifestPath,manifest);
           send({kind:'completed',progressPercent:100,attempt,
             partsWritten:parts.length,message:'已校验全部分片均不超过上限'});
           break;
@@ -206,6 +210,74 @@ class SplitService {
       catch(error){record.historyError=error.message;}
     }
     return record;
+  }
+  async writeAtomic(target,value){
+    const temp=target+'.'+crypto.randomUUID()+'.tmp';
+    const handle=await fs.open(temp,'wx');
+    try{await handle.writeFile(JSON.stringify(value,null,2));await handle.sync();}
+    finally{await handle.close();}
+    try{await fs.rename(temp,target);}catch(error){await fs.rm(temp,{force:true});throw error;}
+  }
+  async merge(id,signal,send){
+    const record=await this.get(id);
+    if(record.status!=='completed'||!record.outputDir||!record.manifestPath||!Array.isArray(record.parts)||record.parts.length<2)
+      throw Error('只有已完成且至少有两个分片的任务可以合并。');
+    const dir=await fs.realpath(record.outputDir);
+    if(dir!==record.outputDir)throw Error('分片目录位置发生变化，已停止合并。');
+    const manifestPath=path.join(dir,'split-manifest.json');
+    if(record.manifestPath!==manifestPath)throw Error('分片清单位置无效。');
+    const manifest=JSON.parse(await fs.readFile(manifestPath,'utf8'));
+    if(manifest.schemaVersion!==1||manifest.taskId!==id||!Array.isArray(manifest.parts)||manifest.parts.length!==record.parts.length)
+      throw Error('分片清单无效或与任务记录不匹配。');
+    const parts=[];
+    for(let i=0;i<manifest.parts.length;i++){
+      const entry=manifest.parts[i],expected=record.parts[i];
+      if(!entry||entry.index!==i+1||entry.name!==expected.name||entry.name!==path.basename(entry.name)||entry.sizeBytes!==expected.sizeBytes)
+        throw Error('分片清单内容与任务记录不匹配。');
+      const full=path.join(dir,entry.name),stat=await fs.lstat(full);
+      if(!stat.isFile()||stat.isSymbolicLink()||stat.size!==entry.sizeBytes||full!==expected.path)
+        throw Error('分片文件已移动、替换或损坏：'+entry.name);
+      parts.push(full);
+    }
+    if(signal?.aborted)throw Error('任务已停止。');
+    const tools=await resolveBinaries();
+    const listPath=path.join(dir,'.merge-'+crypto.randomUUID()+'.ffconcat');
+    const format=outputFormat(record.videoPath);
+    const temporary=path.join(dir,'.merge-'+crypto.randomUUID()+'.partial.'+format.extension);
+    const escapeConcat=value=>"'"+value.replace(/\\/g,'/').replace(/'/g,"'\\''")+"'";
+    let outputPath=null;
+    try{
+      await fs.writeFile(listPath,"ffconcat version 1.0\n"+parts.map(file=>'file '+escapeConcat(file)+'\n').join(''),{flag:'wx'});
+      send({kind:'progress',progressPercent:0,attempt:1,partsWritten:0,message:'正在按清单无损合并分片'});
+      await execBinary(tools.ffmpeg,['-hide_banner','-nostdin','-y','-v','warning','-stats_period','0.25','-progress','pipe:1',
+        '-f','concat','-safe','0','-i',listPath,'-map','0','-c','copy','-f',format.muxer,temporary],signal,0,line=>{
+          const match=/^progress=(continue|end)$/.exec(line);
+          if(match)send({kind:'progress',progressPercent:match[1]==='end'?95:50,attempt:1,partsWritten:parts.length,message:'正在检查合并输出'});
+        });
+      if(signal?.aborted)throw Error('任务已停止。');
+      const stat=await fs.lstat(temporary);
+      if(!stat.isFile()||stat.isSymbolicLink()||stat.size===0)throw Error('FFmpeg 未生成有效合并文件。');
+      await this.video.probe(temporary,signal);
+      const base=path.parse(record.videoName).name+'_合并';
+      for(let n=1;n<=1000;n++){
+        const candidate=path.join(dir,base+(n===1?'':'_'+String(n).padStart(3,'0'))+'.'+format.extension);
+        try{await fs.link(temporary,candidate);outputPath=candidate;break;}
+        catch(error){if(error.code!=='EEXIST')throw error;}
+      }
+      if(!outputPath)throw Error('合并文件重名数量过多，无法创建安全输出。');
+      record.mergedPath=outputPath;record.mergeStatus='completed';record.mergeError=null;
+      await this.save(record);
+      send({kind:'completed',progressPercent:100,attempt:1,partsWritten:parts.length,message:'合并完成，原始分片已保留'});
+      return record;
+    }catch(error){
+      record.mergeStatus=signal?.aborted?'cancelled':'failed';record.mergeError=error.message;
+      await this.save(record).catch(saveError=>{record.historyError=saveError.message;});
+      send({kind:signal?.aborted?'cancelled':'failed',progressPercent:0,attempt:1,partsWritten:0,message:error.message});
+      throw error;
+    }finally{
+      await fs.rm(listPath,{force:true}).catch(()=>{});
+      await fs.rm(temporary,{force:true}).catch(()=>{});
+    }
   }
 }
 module.exports={SplitService,limitBytes,outputFormat,planDuration,GB};

@@ -18,15 +18,15 @@
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
     "Liberation Mono", monospace;
 
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-base: 13px; /* sidebar / dense UI */
-  --text-md: 14px; /* main content base */
-  --text-lg: 16px;
-  --text-xl: 18px; /* card / page titles */
-  --text-title: 20px; /* settings page title */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px; /* sidebar / dense UI */
+  --text-md: 15px; /* main content base */
+  --text-lg: 17px;
+  --text-xl: 20px; /* card / page titles */
+  --text-title: 22px; /* settings page title */
   --text-hero: 28px; /* main view heading */
-  --text-display: 24px; /* metric numbers */
+  --text-display: 26px; /* metric numbers */
 
   --weight-regular: 400;
   --weight-medium: 500;
@@ -50,11 +50,11 @@
   --space-8: 32px;
 
   /* -------------------------------------------------------------- radii */
-  --radius-xs: 4px;
-  --radius-sm: 8px; /* buttons, inputs, chips */
-  --radius-md: 10px; /* settings rows, popovers */
-  --radius-lg: 14px; /* large cards / panels */
-  --radius-xl: 18px; /* hero surfaces */
+  --radius-xs: 6px;
+  --radius-sm: 10px; /* buttons, inputs, chips */
+  --radius-md: 12px; /* settings rows, popovers */
+  --radius-lg: 16px; /* large cards / panels */
+  --radius-xl: 20px; /* hero surfaces */
   --radius-full: 999px;
 
   /* ------------------------------------------------------------- layout */
@@ -65,8 +65,8 @@
   --bottom-panel-height: 230px;
   --settings-sidebar-width: 240px;
   --settings-content-width: 540px;
-  --control-height: 32px;
-  --control-height-sm: 28px;
+  --control-height: 36px;
+  --control-height-sm: 32px;
 
   /* ------------------------------------------------------------- motion
    * Durations are short on purpose: a desktop tool should feel instant.

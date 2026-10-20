@@ -1,10 +1,10 @@
 import { ClockIcon, ComposeIcon, GearIcon, ImageIcon, SplitIcon } from "../lib/icons";
 import { useNavigation } from "../lib/navigation";
-import { ResizeHandle } from "./ResizeHandle";
-import { PANEL_LIMITS, type PeekPhase } from "./AppShell";
+import type { PeekPhase } from "./AppShell";
+import { SidebarMarker, useSidebarMarker } from "./SidebarMarker";
 import "./LeftSidebar.css";
 
-export type HaloSection = "wash" | "history" | "video" | "split";
+export type HaloSection = "wash" | "history" | "video" | "split" | "shutdown";
 
 interface LeftSidebarProps {
   activeSection: HaloSection;
@@ -14,12 +14,6 @@ interface LeftSidebarProps {
   onPeekHold: () => void;
   onPeekEnd: () => void;
   onPeekExited: () => void;
-  size: number;
-  dragging: boolean;
-  onSize: (size: number) => void;
-  onStow: () => void;
-  onUnstow: () => void;
-  onDragging: (dragging: boolean) => void;
 }
 
 /**
@@ -38,15 +32,10 @@ export function LeftSidebar({
   onPeekHold,
   onPeekEnd,
   onPeekExited,
-  size,
-  dragging,
-  onSize,
-  onStow,
-  onUnstow,
-  onDragging,
 }: LeftSidebarProps) {
   const peeking = !open && peek !== "closed";
   const { navigate, view } = useNavigation();
+  const marker = useSidebarMarker(`${view}:${activeSection}`);
 
   return (
     <aside
@@ -58,8 +47,8 @@ export function LeftSidebar({
       onAnimationEnd={peek === "closing" ? onPeekExited : undefined}
     >
       <div className="left-sidebar-inner">
-        <nav className="left-sidebar-nav">
-          <div className="sidebar-section-title">工作区</div>
+        <nav className="left-sidebar-nav" ref={marker.navRef}>
+          <SidebarMarker top={marker.top} />
           <button className="sidebar-item" data-active={view === "shell" && activeSection === "wash"} onClick={() => onSelectSection("wash")}>
             <ComposeIcon className="sidebar-item-icon" />
             <span className="sidebar-item-label">文件洗码</span>
@@ -72,6 +61,10 @@ export function LeftSidebar({
             <SplitIcon className="sidebar-item-icon" />
             <span className="sidebar-item-label">视频按大小切分</span>
           </button>
+          <button className="sidebar-item" data-active={view === "shell" && activeSection === "shutdown"} onClick={() => onSelectSection("shutdown")}>
+            <ClockIcon className="sidebar-item-icon" />
+            <span className="sidebar-item-label">定时关机</span>
+          </button>
           <button className="sidebar-item" data-active={view === "shell" && activeSection === "history"} onClick={() => onSelectSection("history")}>
             <ClockIcon className="sidebar-item-icon" />
             <span className="sidebar-item-label">历史与恢复</span>
@@ -83,20 +76,6 @@ export function LeftSidebar({
         </nav>
       </div>
 
-      {/* Stays mounted mid-drag so a stow can be pulled back open. */}
-      {(open || dragging) && (
-        <ResizeHandle
-          edge="right"
-          dir={1}
-          size={size}
-          min={PANEL_LIMITS.left.min}
-          max={PANEL_LIMITS.left.max}
-          onSize={onSize}
-          onStow={onStow}
-          onUnstow={onUnstow}
-          onDragging={onDragging}
-        />
-      )}
     </aside>
   );
 }

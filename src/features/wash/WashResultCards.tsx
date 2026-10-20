@@ -59,10 +59,10 @@ export function WashResultCards({ ctrl }: { ctrl: WashController }) {
 
   return (
     <div className="halo-results-column">
-      {/* ------------------------------------------------------ 扫描概览 */}
-      <Card
+      {/* Show scope details only after the user asks for a scan. */}
+      {(ctrl.scanning || ctrl.scanSummary) && <Card
         className="halo-scan-card"
-        title="扫描概览"
+        title="已扫描范围"
         meta={
           <span className="halo-scan-state" data-ready={Boolean(ctrl.scanSummary)}>
             <span
@@ -132,10 +132,10 @@ export function WashResultCards({ ctrl }: { ctrl: WashController }) {
             ))}
           </details>
         )}
-      </Card>
+      </Card>}
 
-      {/* -------------------------------------------------------- 任务状态 */}
-      <Card className="halo-task-card">
+      {/* Keep the idle view quiet; show progress only for a real task. */}
+      {(ctrl.running || ctrl.currentSession) && <Card className="halo-task-card">
         <div className="halo-task-head">
           <div className="halo-task-title">
             <span className="halo-task-dot" data-state={sessionState} aria-hidden="true" />
@@ -146,7 +146,7 @@ export function WashResultCards({ ctrl }: { ctrl: WashController }) {
                   ? ctrl.currentSession.cancelled
                     ? "任务已停止"
                     : "任务已结束"
-                  : "等待执行"}
+                : "处理已结束"}
             </h2>
           </div>
           <div className="halo-task-chips">
@@ -190,7 +190,7 @@ export function WashResultCards({ ctrl }: { ctrl: WashController }) {
             </p>
           </>
         )}
-      </Card>
+      </Card>}
 
       {/* -------------------------------------------------------- 处理结果 */}
       <Card
@@ -200,7 +200,7 @@ export function WashResultCards({ ctrl }: { ctrl: WashController }) {
         meta={`${results.length} 个文件`}
       >
         <div className="halo-results-inner">
-          <div className="halo-result-tools">
+          {results.length > 0 && <div className="halo-result-tools">
             <div className="halo-filter-tabs" role="group" aria-label="结果状态筛选">
               {RESULT_FILTERS.map((item) => (
                 <button
@@ -229,7 +229,7 @@ export function WashResultCards({ ctrl }: { ctrl: WashController }) {
                 </button>
               )}
             </div>
-          </div>
+          </div>}
 
           <div className="halo-table-wrap">
             <table>
@@ -289,7 +289,7 @@ export function WashResultCards({ ctrl }: { ctrl: WashController }) {
             </table>
           </div>
 
-          <Pagination total={filtered.length} page={visiblePage} onChange={setPage} />
+          {filtered.length > PAGE_SIZE && <Pagination total={filtered.length} page={visiblePage} onChange={setPage} />}
         </div>
       </Card>
     </div>

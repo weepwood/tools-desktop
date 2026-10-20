@@ -1,6 +1,6 @@
 # HALO
 
-**本机文件与视频工作台。** 洗码、校验恢复、视频截图、按大小切分——全部在本地完成，不联网、不上传。
+**本机文件与视频工作台。** 洗码、校验恢复、重复文件查找、视频截图与切分、电源计划——全部在本地完成，不联网、不上传。
 
 Electron 44 + React 19 + Vite 7，界面为手写 CSS（无 UI 框架）。
 
@@ -21,16 +21,17 @@ HALO/
 npm ci
 npm run dev
 
-npm test          # 26 项回归测试
 npm run build     # tsc --noEmit + vite build
 npm run dist:win  # NSIS 安装器 + Portable
+npm run dist:mac  # DMG + ZIP（需在 macOS 构建）
+npm run dist:linux # AppImage + deb（需在 Linux 构建）
 ```
 
-Windows x64 产物：`HALO-Setup-<version>-x64.exe`、`HALO-Portable-<version>-x64.exe`。CI 通过后在 GitHub Actions Artifacts 的 `HALO-Windows` 中下载。
+CI 为 Windows、macOS 和 Linux 分别构建安装包。Actions Artifacts 可下载对应平台产物；各平台本地打包通常也应在目标操作系统上运行。
 
-### 自动发布 Windows 版本
+### 自动发布多平台版本
 
-更新 `package.json` 中的版本号并同步 `package-lock.json` 后，推送匹配的版本标签（例如 `v1.0.1`）。GitHub Actions 会运行检查、构建 Windows 安装版和便携版，并自动创建 GitHub Release 上传两个 `.exe` 文件。标签版本需与 `package.json` 中的版本一致。
+更新 `package.json` 中的版本号并同步 `package-lock.json` 后，推送匹配的版本标签（例如 `v1.0.1`）。GitHub Actions 会构建 Windows、macOS 和 Linux 产物，并自动创建 GitHub Release 上传安装包。标签版本需与 `package.json` 中的版本一致。
 
 ## 功能
 
@@ -38,13 +39,20 @@ Windows x64 产物：`HALO-Setup-<version>-x64.exe`、`HALO-Portable-<version>-x
 |---|---|
 | 标题栏、主题、侧栏、设置、快捷键 | React + 自研 shell（可收起三栏 + 悬停预览） |
 | 扫描过滤、文件统计、指纹核验 | Node.js fs + SHA-256 + 三段内容采样 |
+| 重复文件查找 | 完整 SHA-256 分组；只报告结果，不自动删除 |
 | 文件洗码 | 32 字节可恢复标记；兼容模式 5 字节随机标记 |
+| 预扫描清单与可选原文件备份 | 显示候选文件，洗码前复制到独立批次目录 |
+| 可复用洗码预设 | 本地保存筛选、校验、模式与备份目录配置 |
 | 完整 / 抽样 / 快速校验 | 全文件 SHA-256、随机与定点区块采样、元数据检查 |
 | 停止任务、确认与安全恢复 | AbortController、系统对话框、标记 / 大小 / 内容三重核验 |
 | 洗码 / 恢复历史、CSV | JSON 历史 + 同步 JSONL 日志 + CSV 导出 |
 | 视频定时截图 | ffprobe / ffmpeg、PNG 输出、实时进度、停止 |
 | 截图画廊与放大预览 | 受限 `halo://image` 协议 |
+| 截图联系表 | 使用 FFmpeg 导出当前截图页的缩略总览图 |
 | 按大小切分视频 | `-c copy` 无损切分，严格校验每个分片不超阈值 |
+| 分片清单与合并 | 生成可核对的 JSON 清单，可按清单无损合并，保留原分片 |
+| 任务中心 | 汇总运行进度与最近洗码、恢复、截图、切分记录 |
+| 跨平台电源计划 | Windows/macOS/Linux 定时关机；定时开机需平台和硬件支持 |
 | 托盘、通知、开机启动 | Electron 主进程 |
 
 ## 设计系统

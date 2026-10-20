@@ -19,7 +19,6 @@ export interface PanelState {
 }
 
 export interface PanelSizes {
-  left: number;
   right: number;
   bottom: number;
 }
@@ -28,10 +27,10 @@ export interface PanelSizes {
 export type PeekPhase = "closed" | "open" | "closing";
 
 const DEFAULT_PANELS: PanelState = { left: true, right: false, bottom: false };
-const DEFAULT_SIZES: PanelSizes = { left: 240, right: 380, bottom: 230 };
+const SIDEBAR_WIDTH = 220;
+const DEFAULT_SIZES: PanelSizes = { right: 380, bottom: 230 };
 
 export const PANEL_LIMITS = {
-  left: { min: 180, max: 420 },
   right: { min: 280, max: 560 },
   bottom: { min: 120, max: 480 },
 } as const;
@@ -45,8 +44,8 @@ const PEEK_CLOSE_DELAY = 250;
  * collapse to 0 when a panel closes (see AppShell.css) — no JS
  * measurement anywhere. The title bar floats above the grid so its
  * buttons never move. Panels are resizable by their inner edge and
- * auto-stow when dragged past their minimum; visibility and sizes
- * persist across launches.
+ * auto-stow when dragged past their minimum. Right and bottom panel sizes
+ * persist across launches; the left navigation has a fixed width.
  */
 interface AppShellProps {
   children: ReactNode;
@@ -147,7 +146,7 @@ export function AppShell({ children, activeSection, onSelectSection }: AppShellP
       data-no-anim={resizing !== null || noAnim}
       style={
         {
-          "--sidebar-width": `${sizes.left}px`,
+          "--sidebar-width": `${SIDEBAR_WIDTH}px`,
           "--right-panel-width": `${sizes.right}px`,
           "--bottom-panel-height": `${sizes.bottom}px`,
         } as CSSProperties
@@ -175,12 +174,6 @@ export function AppShell({ children, activeSection, onSelectSection }: AppShellP
           onPeekHold={peekHold}
           onPeekEnd={peekEnd}
           onPeekExited={() => setPeek("closed")}
-          size={sizes.left}
-          dragging={resizing === "left"}
-          onSize={setSize("left")}
-          onStow={() => setOpen("left", false)}
-          onUnstow={() => setOpen("left", true)}
-          onDragging={setDragging("left")}
         />
       )}
 
@@ -205,6 +198,7 @@ export function AppShell({ children, activeSection, onSelectSection }: AppShellP
         <BottomPanel
           open={panels.bottom}
           onClose={() => toggle("bottom")}
+          onOpenHistory={() => onSelectSection("history")}
           size={sizes.bottom}
           dragging={resizing === "bottom"}
           onSize={setSize("bottom")}

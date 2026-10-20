@@ -1,5 +1,5 @@
 import { Button } from "../components/ui";
-import { CloseIcon } from "../lib/icons";
+import { NoticeToast } from "../components/NoticeToast";
 import { taskLabel } from "../lib/taskStatus";
 import type { HaloSection } from "../shell/LeftSidebar";
 import { HistoryView } from "./HistoryView";
@@ -72,12 +72,7 @@ export function HaloWorkspace({ section, onOpenWash }: { section: HaloSection; o
           </div>
         )}
         {ctrl.notice && (
-          <div className={`halo-notice ${ctrl.notice.type}`} role="status">
-            <span>{ctrl.notice.text}</span>
-            <button aria-label="关闭提示" onClick={ctrl.dismissNotice}>
-              <CloseIcon aria-hidden="true" />
-            </button>
-          </div>
+          <NoticeToast type={ctrl.notice.type} message={ctrl.notice.text} onDismiss={ctrl.dismissNotice} />
         )}
       </div>
 

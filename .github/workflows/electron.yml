@@ -63,9 +63,62 @@ jobs:
           path: release/*.exe
           if-no-files-found: error
 
+  macos-package:
+    runs-on: macos-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - name: Create macOS app icon
+        shell: bash
+        run: |
+          mkdir -p assets/icon.iconset
+          sips -z 16 16 assets/icon.png --out assets/icon.iconset/icon_16x16.png >/dev/null
+          sips -z 32 32 assets/icon.png --out assets/icon.iconset/icon_16x16@2x.png >/dev/null
+          sips -z 32 32 assets/icon.png --out assets/icon.iconset/icon_32x32.png >/dev/null
+          sips -z 64 64 assets/icon.png --out assets/icon.iconset/icon_32x32@2x.png >/dev/null
+          sips -z 128 128 assets/icon.png --out assets/icon.iconset/icon_128x128.png >/dev/null
+          sips -z 256 256 assets/icon.png --out assets/icon.iconset/icon_128x128@2x.png >/dev/null
+          sips -z 256 256 assets/icon.png --out assets/icon.iconset/icon_256x256.png >/dev/null
+          sips -z 512 512 assets/icon.png --out assets/icon.iconset/icon_256x256@2x.png >/dev/null
+          sips -z 512 512 assets/icon.png --out assets/icon.iconset/icon_512x512.png >/dev/null
+          sips -z 1024 1024 assets/icon.png --out assets/icon.iconset/icon_512x512@2x.png >/dev/null
+          iconutil -c icns assets/icon.iconset -o assets/icon.icns
+      - run: npm run dist:mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HALO-macOS
+          path: |
+            release/*.dmg
+            release/*.zip
+          if-no-files-found: error
+
+  linux-package:
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --no-audit --no-fund
+      - run: npm run dist:linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HALO-Linux
+          path: |
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: error
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: windows-installer
+    needs: [windows-installer, macos-package, linux-package]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -73,15 +126,22 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: HALO-Windows
-          path: release
+          path: release/windows
+      - uses: actions/download-artifact@v4
+        with:
+          name: HALO-macOS
+          path: release/macos
+      - uses: actions/download-artifact@v4
+        with:
+          name: HALO-Linux
+          path: release/linux
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          shopt -s nullglob
-          assets=(release/*.exe)
-          if [ "${#assets[@]}" -lt 2 ]; then
-            echo "Expected both installer and portable executable in release/"
+          mapfile -d '' assets < <(find release -type f -print0)
+          if [ "${#assets[@]}" -lt 6 ]; then
+            echo "Expected Windows, macOS, and Linux release packages"
             exit 1
           fi
           gh release create "$GITHUB_REF_NAME" "${assets[@]}" \

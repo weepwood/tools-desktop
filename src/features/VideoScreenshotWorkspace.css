@@ -7,18 +7,24 @@
 
 .video-layout {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: minmax(280px, 328px) minmax(0, 1fr);
+  gap: 16px;
   flex: 1;
   min-height: 0;
+  padding: 0 18px 18px;
   overflow: hidden;
+  background: var(--color-bg-canvas);
 }
 
 .video-options {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid var(--color-border);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
+  box-shadow: var(--elev-1);
 }
 
 .video-options-body {
@@ -233,9 +239,9 @@
   gap: 12px;
   min-width: 0;
   min-height: 0;
-  padding: 16px;
+  padding: 0;
   overflow: hidden;
-  background: var(--color-bg-canvas);
+  background: transparent;
 }
 
 .video-task {
@@ -245,6 +251,7 @@
   overflow: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--elev-1);
   background: var(--color-bg-surface);
 }
 
@@ -309,9 +316,13 @@
 .video-gallery-scroll {
   flex: 1;
   min-height: 0;
-  padding: 4px 2px 2px;
+  padding: 16px;
   overflow: auto;
   overscroll-behavior: contain;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elev-1);
 }
 
 .video-grid {
@@ -477,8 +488,7 @@
   }
 
   .video-options {
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 14px;
   }
 
   .video-options-body {

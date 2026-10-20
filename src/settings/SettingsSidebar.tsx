@@ -8,6 +8,7 @@ import {
 } from "../lib/icons";
 import { searchSettings } from "./settingsSearch";
 import type { ComponentType, SVGProps } from "react";
+import { SidebarMarker, useSidebarMarker } from "../shell/SidebarMarker";
 import "./SettingsSidebar.css";
 
 export interface SettingsCategory {
@@ -40,6 +41,7 @@ export function SettingsSidebar({ active, onSelect }: SettingsSidebarProps) {
   const sections = [...new Set(SETTINGS_CATEGORIES.map((c) => c.section))];
   const trimmed = query.trim();
   const results = trimmed ? searchSettings(query, SETTINGS_CATEGORIES) : [];
+  const marker = useSidebarMarker(active, !trimmed);
 
   const openResult = (id: string) => {
     setQuery("");
@@ -92,7 +94,8 @@ export function SettingsSidebar({ active, onSelect }: SettingsSidebarProps) {
           )}
         </div>
       ) : (
-        <nav className="settings-sidebar-nav">
+        <nav className="settings-sidebar-nav" ref={marker.navRef}>
+          <SidebarMarker top={marker.top} />
           {sections.map((section) => (
             <div key={section}>
               <div className="sidebar-section-title">{section}</div>

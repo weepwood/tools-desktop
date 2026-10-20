@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { cancelTask, listSplitTasks, openSplitOutput, probeVideo, splitVideoBySize } from "../api";
+import { cancelTask, listSplitTasks, mergeSplitTask, openSplitOutput, probeVideo, splitVideoBySize } from "../api";
 import { open } from "../lib/dialog";
 import { usePersistedState } from "../lib/usePersistedState";
 import { isTauri, sendNotification } from "../lib/tauri";
 import { useTaskStatus, taskLabel } from "../lib/taskStatus";
 import { useSettings } from "../lib/settingsStore";
-import { CloseIcon, FolderIcon, SplitIcon } from "../lib/icons";
+import { FolderIcon, SplitIcon } from "../lib/icons";
+import { NoticeToast } from "../components/NoticeToast";
 import type { VideoInfo, VideoSplitRecord, VideoSplitEvent } from "../types";
 import "./HaloWorkspace.css";
 import "./VideoScreenshotWorkspace.css";
@@ -30,6 +31,7 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
   const [video, setVideo] = useState<VideoInfo | null>(null);
   const [probing, setProbing] = useState(false);
   const [running, setRunning] = useState(false);
+  const [merging, setMerging] = useState(false);
   const [stopping, setStopping] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState<{ type: "info" | "error" | "success"; text: string } | null>(null);
@@ -43,8 +45,8 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
     && maxSizeGb >= 0.00001 && maxSizeGb <= 10000;
   const maxSizeBytes = maxSizeGb * 1e9;
   const overLimit = video?.sizeBytes !== undefined && validSize && video.sizeBytes > maxSizeBytes;
-  const busy = probing || running || taskStatus.running;
-  const foreignTask = taskStatus.running && !running && !probing;
+  const busy = probing || running || merging || taskStatus.running;
+  const foreignTask = taskStatus.running && !running && !merging && !probing;
   const progressPercent = progress?.progressPercent ?? (selected?.status === "completed" ? 100 : null);
 
   async function refresh() {
@@ -126,6 +128,16 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
     try {if(!await cancelTask())setStopping(false);}
     catch(error){setStopping(false);setNotice({type:"error",text:errorMessage(error)});}
   }
+  async function merge() {
+    if(!selected||selected.status!=='completed'||selected.parts.length<2||busy)return;
+    setMerging(true);setProgress(null);setNotice(null);
+    try{
+      const result=await mergeSplitTask(selected.id,setProgress);
+      setSelected(result);await refresh();
+      setNotice({type:'success',text:`合并完成：${result.mergedPath}。原始分片已保留。`});
+    }catch(error){setNotice({type:'error',text:errorMessage(error)});}
+    finally{setMerging(false);}
+  }
   async function openFolder(record: VideoSplitRecord) {
     try {await openSplitOutput(record.id);}
     catch(error){setNotice({type:"error",text:errorMessage(error)});}
@@ -142,9 +154,7 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
       {foreignTask && <div className="halo-notice info" role="status">
         <span>{taskLabel(taskStatus.kind)}正在运行，完成后才能切分视频。</span>
       </div>}
-      {notice && <div className={"halo-notice "+notice.type} role={notice.type==="error"?"alert":"status"}>
-        <span>{notice.text}</span><button aria-label="关闭提示" onClick={()=>setNotice(null)}>
-          <CloseIcon aria-hidden="true"/></button></div>}
+      {notice && <NoticeToast type={notice.type} message={notice.text} onDismiss={() => setNotice(null)} />}
     </div>
     <div className="video-layout">
       <aside className="video-options" aria-label="切分设置">
@@ -204,22 +214,24 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
       </aside>
       <section className="video-results" aria-label="切分结果">
         <div className="video-task">
-          <div className="halo-card-heading"><h2>{running?"正在切分视频":selected?labels[selected.status]:"等待任务"}</h2>
+          <div className="halo-card-heading"><h2>{running?"正在切分视频":merging?"正在合并分片":selected?labels[selected.status]:"等待任务"}</h2>
             <span className="halo-muted">{running?"第 "+(progress?.attempt??1)+" 次尝试":selected?
               selected.parts.length+" 个分片":""}</span></div>
-          {(running||selected) && <div className="halo-progress" data-indeterminate={running&&progressPercent===null}
+          {(running||merging||selected) && <div className="halo-progress" data-indeterminate={(running||merging)&&progressPercent===null}
             role="progressbar" aria-label="视频切分进度" aria-valuemin={0} aria-valuemax={100}
             aria-valuenow={progressPercent??undefined}>
             <div style={{width:(progressPercent??(running?30:0))+"%"}}/></div>}
-          {running && progress?.message && <p className="video-path">{progress.message}</p>}
+          {(running||merging) && progress?.message && <p className="video-path">{progress.message}</p>}
           {!running && selected?.error && <p className="video-error" role="alert">{selected.error}</p>}
           {!running && selected?.historyError && <p className="video-error">历史保存异常：{selected.historyError}</p>}
           {selected?.outputDir && <p className="video-path">{selected.outputDir}</p>}
         </div>
         <div className="video-gallery-head"><h2>分片文件</h2>
-          {selected?.outputDir && !running &&
+          {selected?.outputDir && !running && !merging && <>
             <button className="halo-button secondary compact" onClick={()=>void openFolder(selected)}>
-              打开输出目录</button>}
+              打开输出目录</button>
+            {selected.status==='completed'&&selected.parts.length>=2&&<button className="halo-button secondary compact" disabled={busy||Boolean(selected.mergedPath)} onClick={()=>void merge()}>{selected.mergedPath?'已合并':'按清单合并'}</button>}
+          </>}
         </div>
         <div className="video-gallery-scroll split-results-scroll">
           {parts.length ? <div className="split-file-list" role="list">{parts.map((part,index)=>
