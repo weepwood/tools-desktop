@@ -181,7 +181,7 @@ class Video {
     const pattern=path.join(outputDir,'keyframes_%03d.png').replace(/%/g,'%%').replace('%%03d','%03d');
     try {
       let last=0;
-      await execBinary(tools.ffmpeg,['-hide_banner','-nostdin','-n','-nostats','-progress','pipe:1','-i',video.path,'-map','0:v:0','-an','-vf','fps=1/'+interval,'-start_number','1','-atomic_writing','1',pattern],signal,0,line=>{
+      await execBinary(tools.ffmpegPath,['-hide_banner','-nostdin','-n','-nostats','-progress','pipe:1','-i',video.path,'-map','0:v:0','-an','-vf','fps=1/'+interval,'-start_number','1','-atomic_writing','1',pattern],signal,0,line=>{
         const [key,value]=line.split('=');
         if(key==='frame')frame=Number(value)||frame;
         if(key==='out_time_us')seconds=Number(value)/1000000;
