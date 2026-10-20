@@ -7,7 +7,7 @@ const {pathToFileURL}=require('node:url');
 function availableBinary(name){
   const suffix=process.platform==='win32'?'.exe':'';
   const candidates=[];
-  if(process.env.XIMA_VIDEO_TOOLS)candidates.push(path.join(process.env.XIMA_VIDEO_TOOLS,name+suffix));
+  if(process.env.HALO_VIDEO_TOOLS)candidates.push(path.join(process.env.HALO_VIDEO_TOOLS,name+suffix));
   try {const moduleName=name==='ffmpeg'?'ffmpeg-static':'ffprobe-static';const resolved=require(moduleName);candidates.push(typeof resolved==='string'?resolved:resolved.path);} catch {}
   const search=process.env.PATH?.split(path.delimiter)||[];
   for(const directory of search)candidates.push(path.join(directory,name+suffix));
@@ -20,7 +20,7 @@ async function resolveBinaries(){
     const candidates=availableBinary(key);
     chosen[key]=null;
     for(const candidate of candidates){if(await ordinaryFile(candidate)){chosen[key]=candidate;break;}}
-    if(!chosen[key])throw Error('未找到 '+key+'，请通过 XIMA_VIDEO_TOOLS 配置目录或安装完整视频工具。');
+    if(!chosen[key])throw Error('未找到 '+key+'，请通过 HALO_VIDEO_TOOLS 配置目录或安装完整视频工具。');
   }
   return chosen;
 }

@@ -1,7 +1,7 @@
 /*
  * Fixed transparent overlay across the whole window top. Panels slide
- * underneath it, so the buttons keep one position; only the
- * background behind them changes.
+ * underneath it, so the buttons keep one position; only the background
+ * behind them changes.
  */
 .titlebar {
   position: absolute;
@@ -9,12 +9,16 @@
   left: 0;
   right: 0;
   height: var(--titlebar-height);
-  z-index: 40;
+  z-index: var(--z-titlebar);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--space-3);
   pointer-events: auto;
+  /* One chrome tone across the whole width, matching the left sidebar, so
+     the top strip reads as a single bar instead of two differently coloured
+     halves (grey over the sidebar, white over the content). */
+  background: var(--color-bg-base);
 }
 
 /* Start past the inset macOS traffic lights (fixed to the window). */
@@ -30,12 +34,35 @@
   flex-shrink: 0;
 }
 
+/* ------------------------------------------------------------ brand mark */
+
 .titlebar-brand {
-  margin-left: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: 6px;
   color: var(--color-text-secondary);
+  user-select: none;
+}
+
+.titlebar-brand-mark {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  transition: transform var(--dur-3) var(--ease-standard);
+}
+
+/* The ring is the one place the app shows its own colour. It only comes
+   alive when the pointer is on it — a signature, not a decoration. */
+.titlebar-brand:hover .titlebar-brand-mark {
+  transform: rotate(-18deg) scale(1.06);
+}
+
+.titlebar-brand-word {
   font-size: var(--text-sm);
-  font-weight: 650;
-  letter-spacing: .04em;
+  font-weight: var(--weight-strong);
+  letter-spacing: 0.14em;
+  color: var(--color-text);
 }
 
 /* Right cluster stays pinned to the window edge even when it reserves
@@ -80,6 +107,12 @@
   -webkit-app-region: no-drag;
 }
 
+/* One button height for the whole strip (panel toggles + window controls),
+   so a 44px bar reads as a single row instead of stacked elements. */
+.titlebar .icon-button {
+  height: 26px;
+}
+
 /* ---- Tab strip (fills the middle of the row) ---- */
 
 .titlebar-tabs {
@@ -89,15 +122,15 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  /* Left inset matches the buttons' vertical inset (52px bar, 28px
-     buttons → 12px), so the first tab doesn't touch the sidebar edge. */
+  /* Left inset matches the buttons' vertical inset (44px bar, 26px
+     buttons → 9px), so the first tab doesn't touch the sidebar edge. */
   padding: 0 var(--space-2) 0 var(--space-3);
 }
 
 .titlebar-tabs-list {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 2px;
   min-width: 0;
   /* Tabs keep their natural width; once they overflow the reserved
      middle region the strip scrolls horizontally instead of shrinking.
@@ -120,17 +153,17 @@
      scrolls instead. Titles still ellipsis at max-width for long names. */
   flex-shrink: 0;
   min-width: 0;
-  padding: 5px 6px 5px var(--space-3);
-  /* Every tab shows its outline so it reads as a button; the active one
-     is distinguished by a filled background, the rest stay transparent. */
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  padding: 4px 6px 4px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   background: transparent;
   font-size: var(--text-base);
   color: var(--color-text-secondary);
   -webkit-app-region: no-drag;
-  transition: background var(--transition-fast), color var(--transition-fast),
-    border-color var(--transition-fast);
+  transition:
+    background var(--dur-2) var(--ease-standard),
+    color var(--dur-2) var(--ease-standard),
+    border-color var(--dur-2) var(--ease-standard);
 }
 
 .titlebar-tab:hover {
@@ -139,9 +172,9 @@
 }
 
 .titlebar-tab[data-active="true"] {
-  background: var(--color-bg-inset);
-  border-color: var(--color-border-strong);
   color: var(--color-text);
+  background: var(--color-bg-inset);
+  border-color: var(--color-border);
 }
 
 .titlebar-tab-title {
@@ -157,11 +190,13 @@
   width: 18px;
   height: 18px;
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   color: var(--color-text-tertiary);
   opacity: 0;
-  transition: opacity var(--transition-fast), background var(--transition-fast),
-    color var(--transition-fast);
+  transition:
+    opacity var(--dur-2) var(--ease-standard),
+    background var(--dur-2) var(--ease-standard),
+    color var(--dur-2) var(--ease-standard);
 }
 
 .titlebar-tab:hover .titlebar-tab-close,
@@ -183,14 +218,10 @@
   flex-shrink: 0;
 }
 
-.titlebar-window-controls {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  margin-left: var(--space-2);
-}
+/* ------------------------------------------------------- window controls */
 
-.titlebar-close:hover {
-  background: var(--color-danger);
-  color: #fff;
+/* The buttons themselves live in WindowControls.css (shared with settings);
+   this only keeps them off the panel toggles. */
+.titlebar-right .window-controls {
+  margin-left: var(--space-2);
 }

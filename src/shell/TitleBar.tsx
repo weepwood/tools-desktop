@@ -1,14 +1,9 @@
-import { isMacOS, minimizeWindow, toggleMaximizeWindow, closeWindow } from "../lib/tauri";
+import { isMacOS } from "../lib/tauri";
+import { WindowControls } from "./WindowControls";
 import { PanelToggles } from "./PanelToggles";
 import { Tooltip } from "../lib/Tooltip";
 import { useShortcuts } from "../lib/shortcuts";
-import {
-  PlusIcon,
-  MinusIcon,
-  MaximizeIcon,
-  CloseIcon,
-  PanelLeftIcon,
-} from "../lib/icons";
+import { PlusIcon, CloseIcon, PanelLeftIcon } from "../lib/icons";
 import type { PanelState } from "./AppShell";
 import type { UIVisibility } from "../lib/settingsStore";
 import type { Tab } from "./useTabs";
@@ -68,7 +63,36 @@ export function TitleBar({
             </button>
           </Tooltip>
         )}
-        <span className="titlebar-brand" data-tauri-drag-region>XIMA</span>
+        <span className="titlebar-brand" data-tauri-drag-region>
+          {/* The mark is the product name: an open ring, i.e. a halo. */}
+          <svg className="titlebar-brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+            <defs>
+              <linearGradient
+                id="halo-ring-gradient"
+                x1="4"
+                y1="3"
+                x2="20"
+                y2="21"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop offset="0" stopColor="var(--halo-grad-a)" />
+                <stop offset="0.55" stopColor="var(--halo-grad-b)" />
+                <stop offset="1" stopColor="var(--halo-grad-c)" />
+              </linearGradient>
+            </defs>
+            <circle
+              cx="12"
+              cy="12"
+              r="7.7"
+              fill="none"
+              stroke="url(#halo-ring-gradient)"
+              strokeWidth="2.8"
+              strokeLinecap="round"
+              strokeDasharray="38 11"
+            />
+          </svg>
+          <span className="titlebar-brand-word">HALO</span>
+        </span>
       </div>
 
       {/* Empty strip stays draggable; tab buttons opt out via CSS. */}
@@ -112,23 +136,7 @@ export function TitleBar({
 
       <div className="titlebar-right">
         <PanelToggles panels={panels} ui={ui} onToggle={onToggle} />
-        {!mac && (
-          <div className="titlebar-window-controls">
-            <button className="icon-button" title="最小化" onClick={() => void minimizeWindow()}>
-              <MinusIcon />
-            </button>
-            <button className="icon-button" title="最大化" onClick={() => void toggleMaximizeWindow()}>
-              <MaximizeIcon />
-            </button>
-            <button
-              className="icon-button titlebar-close"
-              title="关闭"
-              onClick={() => void closeWindow()}
-            >
-              <CloseIcon />
-            </button>
-          </div>
-        )}
+        <WindowControls />
       </div>
     </header>
   );

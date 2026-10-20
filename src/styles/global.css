@@ -1,5 +1,6 @@
 @import "./tokens.css";
 @import "./themes.css";
+@import "./motion.css";
 
 *,
 *::before,
@@ -18,11 +19,20 @@ body,
 body {
   font-family: var(--font-ui);
   font-size: var(--text-md);
+  line-height: var(--leading-normal);
   color: var(--color-text);
   background: var(--color-bg-base);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
   user-select: none;
   cursor: default;
+}
+
+::selection {
+  background: var(--color-accent-weak);
+  color: var(--color-text);
 }
 
 input,
@@ -45,6 +55,38 @@ a {
   text-decoration: none;
 }
 
+/* One focus language for the whole app: a soft ring, never the UA outline. */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Quiet, thin scrollbars — panels get a lot of them. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: var(--radius-full);
+  background: var(--color-scrollbar);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-scrollbar-hover);
+  background-clip: content-box;
+}
+
 /* Generic icon button (titlebar toggles, sidebar actions) */
 .icon-button {
   display: inline-flex;
@@ -54,7 +96,10 @@ a {
   height: 28px;
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition:
+    background var(--dur-2) var(--ease-standard),
+    color var(--dur-2) var(--ease-standard),
+    transform var(--dur-1) var(--ease-standard);
 }
 
 .icon-button:hover {
@@ -62,8 +107,13 @@ a {
   color: var(--color-text);
 }
 
+.icon-button:active {
+  transform: scale(0.94);
+}
+
 .icon-button[data-active="true"] {
   color: var(--color-text);
+  background: var(--color-bg-active);
 }
 
 .icon-button:disabled {
@@ -80,9 +130,10 @@ a {
 .kbd-hint {
   font-size: var(--text-sm);
   color: var(--color-text-tertiary);
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-wide);
 }
 
+/* Motion preference: attribute wins over the OS-level query. */
 html[data-reduce-motion="on"] *,
 html[data-reduce-motion="on"] *::before,
 html[data-reduce-motion="on"] *::after {

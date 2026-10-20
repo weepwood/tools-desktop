@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
 const {Video}=require('../electron/video.cjs');
 test('corrupt or incomplete video records do not block other history items',async t=>{
-  const tmp=await fs.mkdtemp(path.join(os.tmpdir(),'xima-video-list-'));
+  const tmp=await fs.mkdtemp(path.join(os.tmpdir(),'halo-video-list-'));
   t.after(()=>fs.rm(tmp,{force:true,recursive:true}));
   const video=new Video(tmp);await video.ensure();
   const id='d0a07b26-a0ef-41ce-a5a4-1da59512da21';

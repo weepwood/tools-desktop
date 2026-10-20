@@ -8,7 +8,7 @@ const crypto=require('node:crypto');
 const {Video,resolveBinaries,execBinary}=require('../electron/video.cjs');
 
 test('real FFmpeg extraction: unicode path, pixel dimensions, immutable source, recorded frames',async t=>{
-  const root=await fs.mkdtemp(path.join(os.tmpdir(),'xima-smoke-'));
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'halo-smoke-'));
   t.after(()=>fs.rm(root,{force:true,recursive:true}));
   const source=path.join(root,'示例 视频 100%.mp4');
   const binary=await resolveBinaries();

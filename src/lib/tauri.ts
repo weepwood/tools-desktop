@@ -1,13 +1,13 @@
-/** Compatibility surface for the original XIMA components, powered by Electron. */
-export const isTauri = () => Boolean(window.xima);
+/** Compatibility surface for the original HALO components, powered by Electron. */
+export const isTauri = () => Boolean(window.halo);
 export const isMacOS = () => navigator.userAgent.includes('Macintosh');
-const desktop = (cmd: string, args: Record<string, unknown> = {}) => window.xima?.invoke(cmd, args);
+const desktop = (cmd: string, args: Record<string, unknown> = {}) => window.halo?.invoke(cmd, args);
 export async function minimizeWindow() { await desktop('window_minimize') }
 export async function toggleMaximizeWindow() { await desktop('window_toggle_maximize') }
 export async function closeWindow() { await desktop('window_close') }
 export async function notifyFrontendReady() { await desktop('frontend_ready', { theme: document.documentElement.dataset.theme === 'light' ? 'light' : 'dark' }) }
 export async function sendNotification(title: string, body: string): Promise<boolean> {
-  if (window.xima) return Boolean(await desktop('notify', { title, body }))
+  if (window.halo) return Boolean(await desktop('notify', { title, body }))
   if (!('Notification' in window)) return false
   let status = Notification.permission
   if (status === 'default') status = await Notification.requestPermission()

@@ -9,14 +9,14 @@ const {History}=require('./history.cjs');
 const {Video}=require('./video.cjs');
 const {SplitService}=require('./split.cjs');
 const {validateCommand}=require('./ipc-validation.cjs');
-protocol.registerSchemesAsPrivileged([{scheme:'xima',privileges:{secure:true,standard:true,supportFetchAPI:true,stream:true}}]);
-app.setAppUserModelId('com.weepwood.xima.electron');
+protocol.registerSchemesAsPrivileged([{scheme:'halo',privileges:{secure:true,standard:true,supportFetchAPI:true,stream:true}}]);
+app.setAppUserModelId('com.weepwood.halo.electron');
 const hasInstanceLock=app.requestSingleInstanceLock();
 if(!hasInstanceLock)app.quit();
 let win,tray,exiting=false,active=null,history,video,split;
 let trayVisible=true,launchHidden=false;
 const status=()=>({running:Boolean(active),kind:active?.kind||null,cancelling:Boolean(active?.controller.signal.aborted)});
-function broadcast(name,payload){if(win&&!win.isDestroyed())win.webContents.send('xima:event',{name,payload});}
+function broadcast(name,payload){if(win&&!win.isDestroyed())win.webContents.send('halo:event',{name,payload});}
 function statusChanged(){broadcast('task-status',status());}
 async function task(kind,fn){
   if(active)throw Error('已有任务正在执行：'+active.kind);
@@ -48,13 +48,15 @@ function saveSettings(value){
 }
 function createTray(){
   if(tray||!trayVisible)return;
-  const file=path.join(__dirname,'..','assets','icon.png');
-  let icon=nativeImage.createFromPath(file);
+  // A 32px tray asset stays crisp at 200% scaling; icon.png (512) is the
+  // fallback so a missing tray file never leaves an empty tray slot.
+  let icon=nativeImage.createFromPath(path.join(__dirname,'..','assets','tray.png'));
+  if(icon.isEmpty())icon=nativeImage.createFromPath(path.join(__dirname,'..','assets','icon.png'));
   if(icon.isEmpty())icon=nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO8rXFoAAAAASUVORK5CYII=');
   tray=new Tray(icon);
-  tray.setToolTip('XIMA Tools');
+  tray.setToolTip('HALO Tools');
   tray.setContextMenu(Menu.buildFromTemplate([
-    {label:'显示 XIMA',click:()=>show()},
+    {label:'显示 HALO',click:()=>show()},
     {label:'退出',click:()=>quitSafely()},
   ]));
   tray.on('double-click',()=>show());
@@ -67,8 +69,8 @@ async function quitSafely(){
   app.quit();
 }
 function devAddress(){
-  if(app.isPackaged||!process.env.XIMA_DEV_URL)return null;
-  const url=new URL(process.env.XIMA_DEV_URL);
+  if(app.isPackaged||!process.env.HALO_DEV_URL)return null;
+  const url=new URL(process.env.HALO_DEV_URL);
   if(url.protocol!=='http:'||url.hostname!=='127.0.0.1'||url.port!=='1420')
     throw Error('开发服务器必须使用 http://127.0.0.1:1420');
   return url.toString();
@@ -80,6 +82,9 @@ function createWindow(){
   const expected=development||pathToFileURL(path.join(__dirname,'..','dist','index.html')).toString();
   win=new BrowserWindow({width:1180,height:780,minWidth:820,minHeight:560,show:false,
     backgroundColor:'#15181e',frame:mac,titleBarStyle:mac?'hiddenInset':undefined,
+    // Explicit icon: packaged builds take it from the exe, but in development
+    // this is what puts the HALO mark in the title bar and the taskbar.
+    icon:path.join(__dirname,'..','assets','icon.png'),
     webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true}});
   win.on('close',event=>{if(!exiting&&trayVisible){event.preventDefault();win.hide();}});
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
@@ -94,8 +99,8 @@ function createWindow(){
   win.once('ready-to-show',()=>{if(!launchHidden)win.show();});
 }
 function wire(){
-  ipcMain.on('xima:drag',(e,payload)=>{if(e.sender!==win?.webContents||e.senderFrame!==win?.webContents.mainFrame)return;const {type,paths}=payload||{};broadcast('drag-drop',{type,paths:Array.isArray(paths)?paths.filter(x=>typeof x==='string').slice(0,20):[]});});
-  ipcMain.handle('xima:invoke',async(e,command,args={},requestId='')=>{
+  ipcMain.on('halo:drag',(e,payload)=>{if(e.sender!==win?.webContents||e.senderFrame!==win?.webContents.mainFrame)return;const {type,paths}=payload||{};broadcast('drag-drop',{type,paths:Array.isArray(paths)?paths.filter(x=>typeof x==='string').slice(0,20):[]});});
+  ipcMain.handle('halo:invoke',async(e,command,args={},requestId='')=>{
     if(e.sender!==win?.webContents||e.senderFrame!==win?.webContents.mainFrame)
       throw Error('未经授权的渲染进程');
     validateCommand(command,args);
@@ -105,7 +110,7 @@ function wire(){
       case 'window_minimize':return win.minimize();
       case 'window_toggle_maximize':return win.isMaximized()?win.unmaximize():win.maximize();
       case 'window_close':return win.close();
-      case 'notify':if(Notification.isSupported()){new Notification({title:String(args.title||'XIMA'),body:String(args.body||'')}).show();return true;}return false;
+      case 'notify':if(Notification.isSupported()){new Notification({title:String(args.title||'HALO'),body:String(args.body||'')}).show();return true;}return false;
       case 'is_autostart_enabled':return app.getLoginItemSettings().openAtLogin;
       case 'set_autostart':if(!app.isPackaged)throw Error('开机启动仅在安装后的应用中可配置');app.setLoginItemSettings({openAtLogin:Boolean(args.enabled),openAsHidden:Boolean(args.minimized)});return;
       case 'set_menu_bar_visible':trayVisible=Boolean(args.visible);if(trayVisible)createTray();else destroyTray();return;
@@ -175,7 +180,7 @@ app.whenReady().then(async()=>{
   split=new SplitService(app.getPath('userData'),video);
   await video.recover();
   await split.recover();
-  protocol.handle('xima',async request=>{
+  protocol.handle('halo',async request=>{
     try{
       const url=new URL(request.url);
       if(url.host!=='image')return new Response('Not found',{status:404});
@@ -188,6 +193,6 @@ app.whenReady().then(async()=>{
   trayVisible=saved?.showInMenuBar!==false;
   launchHidden=Boolean(saved?.startMinimized && app.getLoginItemSettings().wasOpenedAtLogin && trayVisible);
   wire();createTray();createWindow();
-}).catch(e=>{dialog.showErrorBox('XIMA 启动失败',e.stack||String(e));app.quit();});
+}).catch(e=>{dialog.showErrorBox('HALO 启动失败',e.stack||String(e));app.quit();});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin'&&!trayVisible)quitSafely();});
 app.on('activate',()=>{if(!hasInstanceLock)return;if(win)show();else createWindow();});

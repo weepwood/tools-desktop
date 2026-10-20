@@ -16,18 +16,19 @@ export interface SearchRow {
 const CONTENT: Record<string, SearchRow[]> = {
   general: [
     { title: "显示托盘图标", description: "关闭窗口后继续在托盘运行" },
-    { title: "开机启动", description: "登录系统后自动启动 XIMA" },
+    { title: "开机启动", description: "登录系统后自动启动 HALO" },
     { title: "启动时最小化", description: "通过托盘访问应用" },
     { title: "任务通知", description: "洗码或恢复任务结束后发送系统通知" },
     { title: "测试通知", description: "发送通知以检查系统权限" },
   ],
   appearance: [
     { title: "外观主题", description: "跟随系统、浅色或深色主题" },
+    { title: "界面字体", description: "系统默认、Segoe UI、微软雅黑、等线、思源黑体" },
     { title: "减少动态效果", description: "减少面板动画，或跟随系统偏好" },
   ],
   advanced: [
     { title: "恢复记录", description: "历史、任务日志和备份保存在本机，历史不会自动删除" },
-    { title: "恢复应用设置", description: "重置通知、动画和启动选项" },
+    { title: "恢复应用设置", description: "重置主题、字体、动画和启动选项" },
   ],
 };
 

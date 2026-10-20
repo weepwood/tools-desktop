@@ -1,17 +1,16 @@
-import { ClockIcon, ComposeIcon, ImageIcon, SplitIcon } from "../lib/icons";
-import { AccountArea } from "./AccountArea";
+import { ClockIcon, ComposeIcon, GearIcon, ImageIcon, SplitIcon } from "../lib/icons";
+import { useNavigation } from "../lib/navigation";
 import { ResizeHandle } from "./ResizeHandle";
 import { PANEL_LIMITS, type PeekPhase } from "./AppShell";
 import "./LeftSidebar.css";
 
-export type XimaSection = "wash" | "history" | "video" | "split";
+export type HaloSection = "wash" | "history" | "video" | "split";
 
 interface LeftSidebarProps {
-  activeSection: XimaSection;
-  onSelectSection: (section: XimaSection) => void;
+  activeSection: HaloSection;
+  onSelectSection: (section: HaloSection) => void;
   open: boolean;
   peek: PeekPhase;
-  showProfileRow: boolean;
   onPeekHold: () => void;
   onPeekEnd: () => void;
   onPeekExited: () => void;
@@ -36,7 +35,6 @@ export function LeftSidebar({
   onSelectSection,
   open,
   peek,
-  showProfileRow,
   onPeekHold,
   onPeekEnd,
   onPeekExited,
@@ -48,6 +46,7 @@ export function LeftSidebar({
   onDragging,
 }: LeftSidebarProps) {
   const peeking = !open && peek !== "closed";
+  const { navigate, view } = useNavigation();
 
   return (
     <aside
@@ -61,25 +60,27 @@ export function LeftSidebar({
       <div className="left-sidebar-inner">
         <nav className="left-sidebar-nav">
           <div className="sidebar-section-title">工作区</div>
-          <button className="sidebar-item" data-active={activeSection === "wash"} onClick={() => onSelectSection("wash")}>
+          <button className="sidebar-item" data-active={view === "shell" && activeSection === "wash"} onClick={() => onSelectSection("wash")}>
             <ComposeIcon className="sidebar-item-icon" />
             <span className="sidebar-item-label">文件洗码</span>
           </button>
-          <button className="sidebar-item" data-active={activeSection === "video"} onClick={() => onSelectSection("video")}>
+          <button className="sidebar-item" data-active={view === "shell" && activeSection === "video"} onClick={() => onSelectSection("video")}>
             <ImageIcon className="sidebar-item-icon" />
             <span className="sidebar-item-label">视频截图</span>
           </button>
-          <button className="sidebar-item" data-active={activeSection === "split"} onClick={() => onSelectSection("split")}>
+          <button className="sidebar-item" data-active={view === "shell" && activeSection === "split"} onClick={() => onSelectSection("split")}>
             <SplitIcon className="sidebar-item-icon" />
             <span className="sidebar-item-label">视频按大小切分</span>
           </button>
-          <button className="sidebar-item" data-active={activeSection === "history"} onClick={() => onSelectSection("history")}>
+          <button className="sidebar-item" data-active={view === "shell" && activeSection === "history"} onClick={() => onSelectSection("history")}>
             <ClockIcon className="sidebar-item-icon" />
             <span className="sidebar-item-label">历史与恢复</span>
           </button>
+          <button className="sidebar-item" data-active={view === "settings"} onClick={() => navigate("settings")}>
+            <GearIcon className="sidebar-item-icon" />
+            <span className="sidebar-item-label">设置</span>
+          </button>
         </nav>
-
-        {showProfileRow && <AccountArea />}
       </div>
 
       {/* Stays mounted mid-drag so a stow can be pulled back open. */}

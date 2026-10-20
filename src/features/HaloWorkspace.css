@@ -1,0 +1,583 @@
+/*
+ * 文件洗码 / 历史 屏的布局样式。
+ *
+ * 这里只放「布局 + 本屏独有的构件」。按钮、卡片、字段、开关、徽章、进度、
+ * 分页、表格等公共外观在 components/ui.css 里，功能样式表只允许扩展，
+ * 不允许重新定义同名规则（那正是改动前 4 个功能文件互相打架的原因）。
+ */
+
+.halo-workspace {
+  position: relative;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border-top-left-radius: var(--radius-lg);
+  color: var(--color-text);
+  background: var(--color-bg-surface);
+  animation: halo-fade-in var(--dur-3) var(--ease-standard) both;
+}
+
+/* ======================================================= 两栏工作台布局 */
+
+.halo-wash-layout {
+  display: grid;
+  grid-template-columns: minmax(272px, 316px) minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------- 左：设置 */
+
+.halo-options {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+}
+
+.halo-options-body {
+  flex: 1;
+  min-height: 0;
+  padding: 18px 18px 22px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.halo-options-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.halo-options-head h2 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-tight);
+}
+
+.halo-options-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-inset);
+  font-size: var(--text-xs);
+}
+
+.halo-options-tag .halo-live-dot {
+  color: var(--color-success);
+}
+
+.halo-options-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.halo-options-section .halo-field:first-of-type {
+  margin-top: 10px;
+}
+
+.halo-options-switches {
+  display: grid;
+  margin-top: 8px;
+}
+
+.halo-options-switches > * + * {
+  border-top: 1px solid var(--color-border);
+}
+
+/* 文件夹选择器：一块可点击的「目标」区域，而不是一个普通按钮 */
+.halo-folder-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-2) var(--ease-standard),
+    background var(--dur-2) var(--ease-standard),
+    box-shadow var(--dur-2) var(--ease-standard);
+}
+
+.halo-folder-picker:hover:not(:disabled) {
+  border-color: var(--color-accent-border);
+  background: color-mix(in srgb, var(--color-accent-weak) 45%, var(--color-bg-surface));
+  box-shadow: var(--elev-1);
+}
+
+.halo-folder-picker:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.halo-folder-glyph {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--halo-action-color);
+  background: var(--color-accent-weak);
+}
+
+.halo-folder-glyph svg {
+  width: 17px;
+  height: 17px;
+}
+
+.halo-folder-copy {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.halo-folder-copy strong {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+}
+
+.halo-folder-copy small {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.halo-folder-picker[data-selected="true"] .halo-folder-copy small {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  user-select: text;
+}
+
+.halo-folder-action {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+
+.halo-folder-picker:hover .halo-folder-action {
+  color: var(--halo-action-color);
+}
+
+/* ------------------------------------------------------------- 右：结果 */
+
+.halo-results-column {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--color-bg-canvas);
+}
+
+.halo-scan-card,
+.halo-task-card {
+  flex-shrink: 0;
+}
+
+.halo-scan-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.halo-scan-state .halo-live-dot {
+  background: currentColor;
+}
+
+.halo-scan-state[data-ready="true"] {
+  color: var(--halo-success-text);
+}
+
+/* 三个数字指标：等宽、无边框，用细分隔线而不是卡片套卡片 */
+.halo-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.halo-metric {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 2px 16px;
+  border-left: 1px solid var(--color-border);
+}
+
+.halo-metric:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.halo-metric > span {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.halo-metric > strong {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: var(--text-display);
+  font-weight: var(--weight-emphasis);
+  line-height: 1.2;
+  letter-spacing: var(--tracking-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.halo-metric > small {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+}
+
+/* ---------------------------------------------------------- 折叠区通用 */
+
+.halo-disclosure {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.halo-disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  list-style: none;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: color var(--dur-2) var(--ease-standard);
+}
+
+.halo-disclosure > summary:hover {
+  color: var(--color-text);
+}
+
+.halo-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.halo-disclosure > summary svg {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  transition: transform var(--dur-3) var(--ease-standard);
+}
+
+.halo-disclosure[open] > summary svg {
+  transform: rotate(180deg);
+}
+
+.halo-options .halo-disclosure > summary {
+  color: var(--color-text);
+  font-weight: var(--weight-emphasis);
+}
+
+.halo-options .halo-disclosure > summary > span {
+  display: grid;
+  gap: 4px;
+}
+
+.halo-options .halo-disclosure > summary small {
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+}
+
+.halo-warnings > summary {
+  color: var(--halo-warning-text);
+}
+
+.halo-warnings p {
+  margin: 8px 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* -------------------------------------------------------------- 预览表 */
+
+.halo-file-preview {
+  margin-top: 10px;
+}
+
+.halo-preview-head,
+.halo-preview-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px;
+  gap: 12px;
+  padding: 7px 2px;
+}
+
+.halo-preview-head {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.halo-preview-row {
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+}
+
+.halo-preview-row > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.halo-preview-row > b {
+  font-weight: var(--weight-medium);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.halo-preview .halo-muted {
+  margin: 8px 0 0;
+}
+
+/* ------------------------------------------------------------ 任务卡片 */
+
+.halo-task-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.halo-task-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.halo-task-title h2 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-strong);
+  letter-spacing: var(--tracking-tight);
+}
+
+.halo-task-dot {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-text-tertiary);
+}
+
+.halo-task-dot[data-state="running"] {
+  color: var(--halo-action-color);
+  background: currentColor;
+  animation: halo-breathe var(--dur-5) var(--ease-standard) infinite;
+}
+
+.halo-task-dot[data-state="running"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  animation: halo-ping var(--dur-5) var(--ease-standard) infinite;
+}
+
+.halo-task-dot[data-state="done"] {
+  background: var(--color-success);
+}
+
+.halo-task-dot[data-state="failed"] {
+  background: var(--color-danger);
+}
+
+.halo-task-dot[data-state="stopped"] {
+  background: var(--color-warning);
+}
+
+.halo-task-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.halo-task-card .halo-progress-block {
+  margin-top: 14px;
+}
+
+/* ------------------------------------------------------------ 结果卡片 */
+
+.halo-results-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  min-height: 360px;
+}
+
+.halo-card.flush > .halo-card-heading {
+  margin: 0;
+  padding: 16px var(--space-5) 12px;
+}
+
+.halo-results-inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0 0 4px;
+}
+
+.halo-result-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 var(--space-5) 10px;
+}
+
+.halo-results-card .halo-table-wrap {
+  flex: 1;
+  padding: 0 var(--space-5);
+}
+
+.halo-results-card .halo-pagination {
+  margin-top: auto;
+  padding: 10px var(--space-5) 14px;
+}
+
+.halo-file-cell {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.halo-file-cell > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.halo-file-cell .halo-link-button {
+  margin-top: 3px;
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease-standard);
+}
+
+.halo-table-wrap tbody tr:hover .halo-link-button,
+.halo-table-wrap tbody tr:focus-within .halo-link-button {
+  opacity: 1;
+}
+
+.halo-error-reason {
+  max-width: 260px;
+  min-width: 100px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.halo-num {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.halo-table-empty {
+  padding: 0;
+}
+
+.halo-table-empty .halo-empty-state {
+  padding: 40px 16px;
+}
+
+/* ------------------------------------------------------------ 响应式 */
+
+@media (max-width: 1040px) {
+  .halo-wash-layout {
+    grid-template-columns: minmax(252px, 288px) minmax(0, 1fr);
+  }
+
+  .halo-results-column {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 760px) {
+  .halo-page-header {
+    align-items: flex-start;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .halo-notice-stack {
+    right: 12px;
+    width: calc(100% - 24px);
+  }
+}
+
+/* 容器查询：主内容被面板挤压时改为上下堆叠 */
+@container (max-width: 720px) {
+  .halo-wash-layout {
+    display: block;
+    overflow: auto;
+  }
+
+  .halo-options {
+    min-height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .halo-options-body {
+    overflow: visible;
+  }
+
+  .halo-results-column {
+    overflow: visible;
+  }
+
+  .halo-results-card {
+    min-height: 340px;
+  }
+
+  .halo-metric {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .halo-metric > strong {
+    font-size: var(--text-xl);
+  }
+}

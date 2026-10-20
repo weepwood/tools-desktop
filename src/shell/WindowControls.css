@@ -1,0 +1,29 @@
+/*
+ * Window controls — shared by the app shell and the settings screen.
+ *
+ * The close button follows the Windows convention (red on hover) because it
+ * is destructive and sits at the window edge; the other two only get the
+ * neutral hover plate.
+ */
+
+.window-controls {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+}
+
+.window-controls .icon-button {
+  width: 30px;
+  height: 26px; /* matches .titlebar .icon-button */
+  border-radius: var(--radius-xs);
+}
+
+.window-controls-close:hover {
+  background: var(--color-danger);
+  color: #fff;
+}
+
+.window-controls-close:active {
+  background: color-mix(in srgb, var(--color-danger) 84%, #000);
+}

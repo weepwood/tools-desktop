@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { useNavigation } from "../lib/navigation";
 import {
-  ArrowLeftIcon,
   SearchIcon,
   GearIcon,
   KeyboardIcon,
@@ -32,11 +30,11 @@ interface SettingsSidebarProps {
 }
 
 /**
- * Settings navigation: "Back to app" on top, search field, then
- * categories grouped by section.
+ * Settings navigation: search field, then categories grouped by section.
+ * Returning to the workspace is handled by the page header, so this column
+ * starts directly with search.
  */
 export function SettingsSidebar({ active, onSelect }: SettingsSidebarProps) {
-  const { navigate } = useNavigation();
   const [query, setQuery] = useState("");
 
   const sections = [...new Set(SETTINGS_CATEGORIES.map((c) => c.section))];
@@ -50,14 +48,6 @@ export function SettingsSidebar({ active, onSelect }: SettingsSidebarProps) {
 
   return (
     <aside className="settings-sidebar">
-      {/* Drag strip; on macOS the traffic lights sit over it. */}
-      <div className="settings-sidebar-header" data-tauri-drag-region />
-
-      <button className="settings-back" onClick={() => navigate("shell")}>
-        <ArrowLeftIcon />
-        <span>返回应用</span>
-      </button>
-
       <div className="settings-search">
         <SearchIcon />
         <input

@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { isTauri } from "./tauri";
 
 /*
- * App settings, persisted to a JSON file via tauri-plugin-store
- * (falls back to localStorage in a plain browser). Extend the
- * AppSettings interface + DEFAULTS and the rest works automatically.
+ * App settings persist through the Electron main process (and fall back to
+ * localStorage in a plain browser). Extend AppSettings + DEFAULT_SETTINGS
+ * to make a preference available throughout the app.
  */
 
 /**
@@ -17,13 +17,13 @@ export interface UIVisibility {
   leftSidebar: boolean;
   rightSidebar: boolean;
   bottomPanel: boolean;
-  profileRow: boolean;
 }
 
 export interface AppSettings {
   displayName: string;
   language: "auto" | "en" | "sl" | "de";
   reduceMotion: "system" | "on" | "off";
+  uiFont: "system" | "segoe" | "yahei" | "dengxian" | "source-han";
   notifications: boolean;
   telemetry: boolean;
   /** Keep an icon in the menu bar / system tray. Read by Rust at startup. */
@@ -37,6 +37,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   displayName: "",
   language: "auto",
   reduceMotion: "system",
+  uiFont: "system",
   notifications: true,
   telemetry: false,
   showInMenuBar: true,
@@ -46,21 +47,24 @@ export const DEFAULT_SETTINGS: AppSettings = {
     leftSidebar: true,
     rightSidebar: false,
     bottomPanel: false,
-    profileRow: true,
   },
 };
 
 const STORE_FILE = "settings.json";
 const FALLBACK_KEY = "app:settings";
+const UI_FONT_KEY = "app:ui-font";
+const UI_FONTS = ["system", "segoe", "yahei", "dengxian", "source-han"] as const;
 
 type Listener = (s: AppSettings) => void;
 
 /** Merge persisted settings over the defaults, deep-merging nested `ui`. */
 function withDefaults(saved: Partial<AppSettings> | null | undefined): AppSettings {
+  const uiFont = UI_FONTS.find((font) => font === saved?.uiFont) ?? "system";
   return {
     ...DEFAULT_SETTINGS,
     ...saved,
-    // XIMA exposes only implemented panes; ignore legacy scaffold-only toggles.
+    uiFont,
+    // HALO exposes only implemented panes; ignore legacy scaffold-only toggles.
     ui: { ...DEFAULT_SETTINGS.ui, ...saved?.ui, tabs: false, rightSidebar: false, bottomPanel: false },
   };
 }
@@ -76,7 +80,7 @@ async function load(): Promise<void> {
     loadPromise = (async () => {
       try {
         if (isTauri()) {
-          const saved = await window.xima!.invoke<Partial<AppSettings> | null>("settings_get", { file: STORE_FILE });
+          const saved = await window.halo!.invoke<Partial<AppSettings> | null>("settings_get", { file: STORE_FILE });
           current = withDefaults(saved);
         } else {
           const raw = localStorage.getItem(FALLBACK_KEY);
@@ -85,6 +89,9 @@ async function load(): Promise<void> {
       } catch (e) {
         console.warn("Failed to load settings, using defaults:", e);
       }
+      try {
+        localStorage.setItem(UI_FONT_KEY, current.uiFont);
+      } catch {}
       loaded = true;
       listeners.forEach((l) => l(current));
     })();
@@ -94,10 +101,13 @@ async function load(): Promise<void> {
 
 async function persist(next: AppSettings) {
   current = next;
+  try {
+    localStorage.setItem(UI_FONT_KEY, next.uiFont);
+  } catch {}
   listeners.forEach((l) => l(current));
   try {
     if (isTauri()) {
-      await window.xima!.invoke("settings_set", { file: STORE_FILE, settings: next });
+      await window.halo!.invoke("settings_set", { file: STORE_FILE, settings: next });
     } else {
       localStorage.setItem(FALLBACK_KEY, JSON.stringify(next));
     }

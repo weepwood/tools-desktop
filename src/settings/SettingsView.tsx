@@ -1,12 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { SettingsSidebar, SETTINGS_CATEGORIES } from "./SettingsSidebar";
+import { useEffect, useState } from "react";
+import { SETTINGS_CATEGORIES } from "./SettingsSidebar";
 import { ShortcutsSettings } from "./ShortcutsSettings";
-import { useShortcutHandlers } from "../lib/shortcuts";
-import { useNavigation } from "../lib/navigation";
 import { Toggle } from "./controls/Toggle";
 import { SegmentedControl } from "./controls/SegmentedControl";
+import { Select } from "./controls/Select";
 import { useSettings } from "../lib/settingsStore";
-import { useTheme, } from "../theme/useTheme";
+import { useTheme } from "../theme/useTheme";
 import type { ThemeChoice } from "../theme/ThemeProvider";
 import {
   isAutostartEnabled,
@@ -18,41 +17,23 @@ import {
 import "./SettingsView.css";
 
 /**
- * Settings: categories sidebar + one scrollable content pane. Each
- * category demonstrates the styled control primitives wired to the
- * persisted settings store.
+ * Settings content for one category: page title + groups.
+ *
+ * The workspace frame and category sidebar live in SettingsWorkspace; this
+ * file only owns the panels, so the same content can be
+ * embedded anywhere without dragging the sidebar along.
  */
-export function SettingsView() {
-  const { navigate, settingsCategory } = useNavigation();
-  const [category, setCategory] = useState(settingsCategory ?? "general");
-
-  // Follow the category requested by navigation (e.g. Profile from the
-  // account menu) even when the settings view is already mounted.
-  useEffect(() => {
-    if (settingsCategory) setCategory(settingsCategory);
-  }, [settingsCategory]);
-
-  // The settings shortcut acts as a toggle: pressing it here goes back.
-  useShortcutHandlers(
-    useMemo(() => ({ "open-settings": () => navigate("shell") }), [navigate]),
-  );
-
+export function SettingsBody({ category }: { category: string }) {
   return (
-    <div className="settings-view">
-      <SettingsSidebar active={category} onSelect={setCategory} />
-      <div className="settings-content-wrap">
-        <div className="settings-titlebar" data-tauri-drag-region />
-        <div className="settings-content">
-          <div className="settings-content-column">
-            <h1 className="settings-title">
-              {SETTINGS_CATEGORIES.find((c) => c.id === category)?.label}
-            </h1>
-            {category === "general" && <GeneralSettings />}
-            {category === "appearance" && <AppearanceSettings />}
-            {category === "shortcuts" && <ShortcutsSettings />}
-            {category === "advanced" && <AdvancedSettings />}
-          </div>
-        </div>
+    <div className="settings-content">
+      <div className="settings-content-column">
+        <h1 className="settings-title">
+          {SETTINGS_CATEGORIES.find((c) => c.id === category)?.label}
+        </h1>
+        {category === "general" && <GeneralSettings />}
+        {category === "appearance" && <AppearanceSettings />}
+        {category === "shortcuts" && <ShortcutsSettings />}
+        {category === "advanced" && <AdvancedSettings />}
       </div>
     </div>
   );
@@ -162,7 +143,7 @@ function GeneralSettings() {
         </Row>
         <Row
           title="开机启动"
-          description="登录系统后自动启动 XIMA"
+          description="登录系统后自动启动 HALO"
         >
           <Toggle
             checked={autostart}
@@ -199,7 +180,7 @@ function GeneralSettings() {
           <button
             className="control-button"
             onClick={() =>
-              void sendNotification("XIMA 测试通知", "系统通知已启用。")
+              void sendNotification("HALO 测试通知", "系统通知已启用。")
                 .then((shown) => setFeedback(shown ? "测试通知已发送。" : "系统未授予通知权限。"))
                 .catch((error) => setFeedback(`发送通知失败：${String(error)}`))
             }
@@ -208,7 +189,11 @@ function GeneralSettings() {
           </button>
         </Row>
       </Group>
-      {feedback && <p role="status">{feedback}</p>}
+      {feedback && (
+        <p className="settings-feedback" role="status">
+          {feedback}
+        </p>
+      )}
     </>
   );
 }
@@ -228,6 +213,26 @@ function AppearanceSettings() {
               { value: "system", label: "跟随系统" },
               { value: "light", label: "浅色" },
               { value: "dark", label: "深色" },
+            ]}
+          />
+        </Row>
+      </Group>
+
+      <Group label="字体">
+        <Row
+          title="界面字体"
+          description="更改整个应用的字体；未安装的字体会自动使用后备字体。"
+        >
+          <Select
+            value={settings.uiFont}
+            onChange={(value) => update("uiFont", value)}
+            aria-label="界面字体"
+            options={[
+              { value: "system", label: "系统默认" },
+              { value: "segoe", label: "Segoe UI" },
+              { value: "yahei", label: "微软雅黑" },
+              { value: "dengxian", label: "等线" },
+              { value: "source-han", label: "思源黑体" },
             ]}
           />
         </Row>
@@ -256,8 +261,8 @@ function AdvancedSettings() {
   const [storageWarnings, setStorageWarnings] = useState<string[] | null>(null);
   useEffect(() => {
     let active = true;
-    if (window.xima) {
-      void window.xima.invoke<string[]>("storage_diagnostics").then(warnings => {
+    if (window.halo) {
+      void window.halo.invoke<string[]>("storage_diagnostics").then(warnings => {
         if (active) setStorageWarnings(warnings);
       }).catch(error => { if (active) setStorageWarnings(["诊断失败：" + String(error)]); });
     }

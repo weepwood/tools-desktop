@@ -8,11 +8,12 @@
   padding: var(--space-6);
 }
 
-.xima-main-content {
+.halo-main-content {
   display: block;
   align-items: stretch;
   justify-content: flex-start;
   padding: 0;
+  background: var(--color-bg-base);
 }
 
 .main-content-center {

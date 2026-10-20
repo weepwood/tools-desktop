@@ -7,16 +7,16 @@ const path=require('node:path');
 const {marker,scan,wash,restore,MAGIC}=require('../electron/engine.cjs');
 const {History}=require('../electron/history.cjs');
 async function fixture(t) {
-  const root=await fs.mkdtemp(path.join(os.tmpdir(),'xima-electron-'));
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'halo-electron-'));
   t.after(()=>fs.rm(root,{recursive:true,force:true}));
   const input=path.join(root,'in');await fs.mkdir(input);
-  const data=Buffer.from('video-header--XIMA test content--00000000000000');
+  const data=Buffer.from('video-header--HALO test content--00000000000000');
   const file=path.join(input,'sample.mp4');await fs.writeFile(file,data);
   const history=new History(path.join(root,'data'));
   const request={rootPath:input,recursive:true,skipHidden:true,skipSmall:false,minSizeBytes:0,extensions:['mp4']};
   return {root,file,data,history,request};
 }
-test('recoverable marker matches original Rust XIMA magic/size',()=>{
+test('recoverable marker matches original Rust HALO magic/size',()=>{
   const value=marker('recoverable');
   assert.equal(value.length,32);
   assert.deepEqual(value.subarray(0,8),MAGIC);

@@ -1,13 +1,13 @@
 {
-  "name": "tools-desktop",
+  "name": "halo-desktop",
   "private": true,
-  "version": "0.2.0",
-  "description": "Electron recreation of XIMA Desktop",
+  "version": "1.0.0",
+  "description": "HALO — 本地文件洗码、校验恢复与视频工具的桌面工作台",
   "main": "electron/main.cjs",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"vite --host 127.0.0.1 --port 1420 --strictPort\" \"wait-on http://127.0.0.1:1420 && cross-env XIMA_DEV_URL=http://127.0.0.1:1420 electron .\"",
+    "dev": "concurrently -k \"vite --host 127.0.0.1 --port 1420 --strictPort\" \"wait-on http://127.0.0.1:1420 && cross-env HALO_DEV_URL=http://127.0.0.1:1420 electron .\"",
     "build": "tsc --noEmit && vite build",
     "test": "node --test tests/*.test.cjs",
     "preview": "vite preview",
@@ -33,8 +33,8 @@
     "wait-on": "^8.0.3"
   },
   "build": {
-    "appId": "com.weepwood.xima.electron",
-    "productName": "XIMA Tools",
+    "appId": "com.weepwood.halo.electron",
+    "productName": "HALO",
     "directories": {
       "output": "release"
     },
@@ -65,18 +65,19 @@
           ]
         }
       ],
-      "icon": "assets/icon.png"
+      "icon": "assets/icon.ico"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "artifactName": "XIMA-Tools-Setup-${version}-${arch}.${ext}"
+      "artifactName": "HALO-Setup-${version}-${arch}.${ext}"
     },
     "portable": {
-      "artifactName": "XIMA-Tools-Portable-${version}-${arch}.${ext}"
-    }
+      "artifactName": "HALO-Portable-${version}-${arch}.${ext}"
+    },
+    "artifactName": null
   },
   "author": "weepwood",
   "allowScripts": {

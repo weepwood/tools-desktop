@@ -18,7 +18,9 @@
   font-size: var(--text-sm);
   color: var(--color-text);
   pointer-events: none;
-  z-index: 200;
+  z-index: var(--z-toast);
+  /* A tooltip should feel like it is already there — 90ms, no bounce. */
+  animation: halo-fade-in var(--dur-1) var(--ease-standard) both;
 }
 
 .tooltip[data-align="center"] {

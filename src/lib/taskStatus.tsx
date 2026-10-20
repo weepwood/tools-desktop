@@ -18,7 +18,7 @@ export function TaskStatusProvider({ children }: { children: ReactNode }) {
     let revision = 0;
     let unlisten: (() => void) | undefined;
     void (async () => {
-      const cleanup = window.xima!.on<TaskStatus>("task-status", (payload) => {
+      const cleanup = window.halo!.on<TaskStatus>("task-status", (payload) => {
         revision += 1;
         if (active) setStatus(payload);
       });

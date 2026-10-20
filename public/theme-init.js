@@ -10,4 +10,11 @@
       : "light";
   }
   document.documentElement.dataset.theme = theme;
+  var uiFont = "system";
+  try {
+    uiFont = localStorage.getItem("app:ui-font") || "system";
+  } catch (e) {}
+  document.documentElement.dataset.uiFont = ["system", "segoe", "yahei", "dengxian", "source-han"].includes(uiFont)
+    ? uiFont
+    : "system";
 })();

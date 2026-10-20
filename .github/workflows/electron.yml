@@ -49,6 +49,6 @@ jobs:
           Write-Output "Packaged tools: $($ffmpeg.FullName), $($ffprobe.FullName)"
       - uses: actions/upload-artifact@v4
         with:
-          name: XIMA-Tools-Windows
+          name: HALO-Windows
           path: release/*.exe
           if-no-files-found: error

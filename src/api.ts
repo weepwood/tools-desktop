@@ -1,7 +1,7 @@
 import type { RestoreEvent, RestoreRecord, ScanRequest, ScanSummary, SessionRecord, WashEvent, WashRequest, TaskStatus, VideoTools, VideoInfo, VideoRequest, VideoEvent, VideoTask, VideoFramePage, VideoSplitRequest, VideoSplitRecord, VideoSplitEvent } from './types'
 
 async function call<T>(command: string, args: Record<string, unknown> = {}, onMessage?: (value: any) => void): Promise<T> {
-  const bridge = window.xima
+  const bridge = window.halo
   if (!bridge) throw new Error('该操作只能在 Electron 桌面应用中执行。')
   const id = crypto.randomUUID()
   const unsubscribe = onMessage ? bridge.on('request:' + id, onMessage) : () => {}

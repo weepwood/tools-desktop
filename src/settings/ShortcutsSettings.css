@@ -2,12 +2,21 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 8px 12px;
+  height: var(--control-height);
   margin-bottom: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-elevated);
+  padding: 0 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
   color: var(--color-text-tertiary);
+  transition:
+    border-color var(--dur-2) var(--ease-standard),
+    box-shadow var(--dur-2) var(--ease-standard);
+}
+
+.shortcuts-search:focus-within {
+  border-color: var(--halo-focus-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--halo-focus-color) 16%, transparent);
 }
 
 .shortcuts-search svg {
@@ -35,8 +44,9 @@
 
 .shortcuts-table {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   background: var(--color-bg-elevated);
+  box-shadow: var(--elev-1);
   overflow: hidden;
 }
 
@@ -52,8 +62,9 @@
 .shortcuts-table-header {
   padding-top: var(--space-2);
   padding-bottom: var(--space-2);
-  font-size: var(--text-base);
-  color: var(--color-text-secondary);
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-inset);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -78,13 +89,17 @@
 }
 
 .shortcuts-chip {
-  padding: 4px 12px;
+  padding: 3px 11px;
   border-radius: var(--radius-full);
-  background: var(--color-bg-hover);
+  background: var(--color-bg-inset);
+  box-shadow: inset 0 0 0 1px var(--color-border);
   font-size: var(--text-sm);
   color: var(--color-text);
   letter-spacing: 0.03em;
-  transition: background var(--transition-fast);
+  cursor: pointer;
+  transition:
+    background var(--dur-2) var(--ease-standard),
+    box-shadow var(--dur-2) var(--ease-standard);
 }
 
 .shortcuts-chip:hover {
@@ -129,12 +144,32 @@
   color: var(--color-text-tertiary);
 }
 
+/* A real button, not a bare label: resetting keys is a destructive-ish action. */
 .shortcuts-reset {
-  margin-top: var(--space-3);
-  font-size: var(--text-base);
-  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--control-height);
+  margin-top: var(--space-4);
+  padding: 0 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+  cursor: pointer;
+  transition:
+    background var(--dur-2) var(--ease-standard),
+    border-color var(--dur-2) var(--ease-standard),
+    transform var(--dur-1) var(--ease-standard);
 }
 
 .shortcuts-reset:hover {
-  color: var(--color-text);
+  background: var(--color-bg-hover);
+  border-color: var(--color-text-tertiary);
+}
+
+.shortcuts-reset:active {
+  transform: translateY(1px) scale(0.99);
 }

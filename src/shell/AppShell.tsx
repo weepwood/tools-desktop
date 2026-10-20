@@ -3,7 +3,7 @@ import { usePersistedState } from "../lib/usePersistedState";
 import { useShortcutHandlers } from "../lib/shortcuts";
 import { TitleBar } from "./TitleBar";
 import { LeftSidebar } from "./LeftSidebar";
-import type { XimaSection } from "./LeftSidebar";
+import type { HaloSection } from "./LeftSidebar";
 import { RightSidebar } from "./RightSidebar";
 import { BottomPanel } from "./BottomPanel";
 import { MainContent } from "./MainContent";
@@ -50,8 +50,8 @@ const PEEK_CLOSE_DELAY = 250;
  */
 interface AppShellProps {
   children: ReactNode;
-  activeSection: XimaSection;
-  onSelectSection: (section: XimaSection) => void;
+  activeSection: HaloSection;
+  onSelectSection: (section: HaloSection) => void;
 }
 
 export function AppShell({ children, activeSection, onSelectSection }: AppShellProps) {
@@ -172,7 +172,6 @@ export function AppShell({ children, activeSection, onSelectSection }: AppShellP
           onSelectSection={onSelectSection}
           open={panels.left}
           peek={peek}
-          showProfileRow={ui.profileRow}
           onPeekHold={peekHold}
           onPeekEnd={peekEnd}
           onPeekExited={() => setPeek("closed")}

@@ -1,0 +1,20 @@
+/*
+ * View slots: every workspace stays mounted, hidden slots are removed from
+ * layout. Keeping this in its own file makes it obvious that `hidden` is a
+ * structural rule of the shell, not a per-screen hack.
+ */
+
+.halo-view-slot {
+  display: block;
+  height: 100%;
+  min-height: 0;
+}
+
+.halo-view-slot[hidden] {
+  display: none;
+}
+
+/* Root of the app shell containing persistent workspace and settings pages. */
+.halo-shell-root {
+  height: 100%;
+}

@@ -1,48 +1,33 @@
+/* Category navigation inside the settings workspace page. */
 .settings-sidebar {
   width: var(--settings-sidebar-width);
   flex-shrink: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--color-bg-base);
-}
-
-.settings-sidebar-header {
-  height: var(--titlebar-height);
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 var(--space-3);
-}
-
-.settings-back {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0 var(--space-3) var(--space-3);
-  font-size: var(--text-base);
-  color: var(--color-text-secondary);
-  transition: color var(--transition-fast);
-}
-
-.settings-back:hover {
-  color: var(--color-text);
-}
-
-.settings-back svg {
-  width: 14px;
-  height: 14px;
+  padding-top: var(--space-3);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
 }
 
 .settings-search {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: 0 var(--space-3) var(--space-2);
-  padding: 5px 10px;
+  margin: 0 var(--space-2) var(--space-2);
+  padding: 6px 10px;
   border-radius: var(--radius-sm);
-  background: var(--color-bg-hover);
+  background: var(--color-bg-inset);
+  box-shadow: inset 0 0 0 1px var(--color-border);
   color: var(--color-text-tertiary);
+  transition:
+    background var(--dur-2) var(--ease-standard),
+    box-shadow var(--dur-2) var(--ease-standard);
+}
+
+.settings-search:focus-within {
+  background: var(--color-bg-surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--halo-focus-color) 16%, transparent);
 }
 
 .settings-search svg {
@@ -69,13 +54,13 @@
 .settings-sidebar-nav {
   flex: 1;
   overflow-y: auto;
-  padding: 0 var(--space-2) var(--space-4);
+  padding: 4px var(--space-2) var(--space-4);
+  border-top: 1px solid var(--color-border);
   font-size: var(--text-base);
 }
 
-.settings-sidebar-nav .sidebar-item[data-active="true"] {
-  background: var(--color-bg-active);
-}
+/* 选中态、悬停态与行高全部继承 .sidebar-item，不再在这里覆盖：
+   设置里的「常规/外观/快捷键」必须和工作区里的导航看起来是同一个控件。 */
 
 /* ---- Search results ---- */
 
@@ -87,7 +72,7 @@
 .settings-search-result {
   display: block;
   width: 100%;
-  padding: var(--space-3) var(--space-2) var(--space-4);
+  padding: 10px 10px var(--space-3);
   text-align: left;
   border-radius: var(--radius-sm);
   transition: background var(--transition-fast);

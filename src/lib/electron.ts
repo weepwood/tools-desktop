@@ -1,1 +1,1 @@
-export function fileUrl(path: string): string { return 'xima://image/' + encodeURIComponent(path) }
+export function fileUrl(path: string): string { return 'halo://image/' + encodeURIComponent(path) }

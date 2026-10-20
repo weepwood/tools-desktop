@@ -1,56 +1,76 @@
-/* ---- Toggle (iOS-style switch) ---- */
+/*
+ * Settings control primitives.
+ *
+ * These mirror the HALO core primitives (components/ui.css) in size, radius
+ * and easing: a switch in 设置 must look and move exactly like a switch in
+ * 文件洗码。Sizes: 32px controls, 8px radius, 30×18 switch.
+ */
+
+/* ---- Toggle (switch) ---- */
 
 .control-toggle {
   position: relative;
-  width: 36px;
-  height: 21px;
+  width: 30px;
+  height: 18px;
   flex-shrink: 0;
   border-radius: var(--radius-full);
-  background: var(--color-border-strong);
-  transition: background var(--transition-fast);
+  background: color-mix(in srgb, var(--color-text-tertiary) 55%, transparent);
+  cursor: pointer;
+  transition: background var(--dur-2) var(--ease-standard);
 }
 
 .control-toggle[data-checked="true"] {
-  background: var(--color-accent);
+  background: var(--halo-action-color);
 }
 
 .control-toggle:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .control-toggle-thumb {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 17px;
-  height: 17px;
+  width: 14px;
+  height: 14px;
   border-radius: var(--radius-full);
   background: #fff;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-  transition: transform var(--transition-fast);
+  transition: transform var(--dur-3) var(--ease-spring);
 }
 
 .control-toggle[data-checked="true"] .control-toggle-thumb {
-  transform: translateX(15px);
+  transform: translateX(12px);
+}
+
+.control-toggle:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
 }
 
 /* ---- Text input ---- */
 
 .control-text-input {
-  width: 180px;
-  padding: 5px 10px;
-  border: 1px solid var(--color-border);
+  width: 200px;
+  max-width: 100%;
+  height: var(--control-height);
+  padding: 0 10px;
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   background: var(--color-bg-inset);
   font-size: var(--text-base);
   outline: none;
   user-select: text;
   cursor: text;
-  transition: border-color var(--transition-fast);
+  transition:
+    border-color var(--dur-2) var(--ease-standard),
+    box-shadow var(--dur-2) var(--ease-standard);
 }
 
 .control-text-input:focus {
-  border-color: var(--color-accent);
+  border-color: var(--halo-focus-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--halo-focus-color) 18%, transparent);
 }
 
 .control-text-input::placeholder {
@@ -61,26 +81,39 @@
 
 .control-select {
   position: relative;
+  display: inline-flex;
 }
 
 .control-select select {
   appearance: none;
   -webkit-appearance: none;
-  width: 180px;
-  padding: 5px 28px 5px 10px;
-  border: 1px solid var(--color-border);
+  width: 200px;
+  max-width: 100%;
+  height: var(--control-height);
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   background: var(--color-bg-inset);
+  color: var(--color-text);
   font-size: var(--text-base);
   outline: none;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-2) var(--ease-standard),
+    box-shadow var(--dur-2) var(--ease-standard);
+}
+
+.control-select select:focus-visible {
+  border-color: var(--halo-focus-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--halo-focus-color) 18%, transparent);
 }
 
 .control-select-chevron {
   position: absolute;
-  right: 8px;
+  right: 9px;
   top: 50%;
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   transform: translateY(-50%);
   pointer-events: none;
   color: var(--color-text-secondary);
@@ -88,18 +121,30 @@
 
 /* ---- Segmented control ---- */
 
+/* Same shape as the result filters: one inset track, the active pill lifts. */
 .control-segmented {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
+  /* The track must stay visible on a white settings card. */
+  box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
 .control-segment {
-  padding: 3px 10px;
-  border-radius: var(--radius-sm);
-  font-size: var(--text-base);
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
   color: var(--color-text-secondary);
-  transition: background var(--transition-fast), color var(--transition-fast);
+  cursor: pointer;
+  transition:
+    background var(--dur-2) var(--ease-standard),
+    color var(--dur-2) var(--ease-standard),
+    box-shadow var(--dur-2) var(--ease-standard);
 }
 
 .control-segment:hover {
@@ -107,25 +152,45 @@
 }
 
 .control-segment[data-active="true"] {
-  background: var(--color-bg-active);
   color: var(--color-text);
+  background: var(--color-bg-elevated);
+  box-shadow: var(--elev-1);
 }
 
 /* ---- Buttons ---- */
 
 .control-button {
-  padding: 5px 14px;
-  border: 1px solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height);
+  padding: 0 12px;
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-  background: var(--color-bg-inset);
-  font-size: var(--text-base);
-  transition: background var(--transition-fast);
+  background: var(--color-bg-surface);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-emphasis);
+  cursor: pointer;
+  transition:
+    background var(--dur-2) var(--ease-standard),
+    border-color var(--dur-2) var(--ease-standard),
+    transform var(--dur-1) var(--ease-standard);
 }
 
 .control-button:hover {
   background: var(--color-bg-hover);
 }
 
+.control-button:active {
+  transform: translateY(1px) scale(0.99);
+}
+
 .control-button[data-variant="danger"] {
-  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 34%, var(--color-border));
+  color: var(--halo-danger-text);
+  background: transparent;
+}
+
+.control-button[data-variant="danger"]:hover {
+  background: var(--color-danger-weak);
 }

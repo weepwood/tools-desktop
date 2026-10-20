@@ -152,7 +152,11 @@ async function washOne(file,request,signal,journal) {
     if(!st.isFile()||st.isSymbolicLink())throw Error('不是普通文件，拒绝修改');
     handle=await fs.open(file.path,constants.O_RDWR | (constants.O_NOFOLLOW||0));
     const before=snap(await handle.stat({bigint:true}));
-    const openedPath=await fs.lstat(file.path);
+    // Compare the path and the open handle in the SAME representation.
+    // A non-bigint stat returns ino as a Number, and on Windows an NTFS file
+    // index routinely exceeds Number.MAX_SAFE_INTEGER — the rounded value then
+    // never equals the bigint string and every file is rejected as "changed".
+    const openedPath=await fs.lstat(file.path,{bigint:true});
     if(!openedPath.isFile()||openedPath.isSymbolicLink()||statId(openedPath)!==before.fileId)
       throw Error('扫描后文件身份变化，拒绝修改');
     if(before.size!==file.size || (file.fileId && before.fileId!==file.fileId) ||
@@ -162,7 +166,7 @@ async function washOne(file,request,signal,journal) {
       throw Error('扫描后文件采样内容已变化，拒绝写入');
     record.beforeSize=before.size;record.beforeFileId=before.fileId;record.beforeModifiedNs=before.modifiedNs;
     if(request.mode==='recoverable' && request.skipAlreadyWashed && (await tail(handle,before.size,32)).subarray(0,8).equals(MAGIC)){
-      record.status='skipped';record.error='文件尾部已有 XIMA 标记。';return record;
+      record.status='skipped';record.error='文件尾部已有 HALO 标记。';return record;
     }
     const bytes=marker(request.mode);record.appendedHex=bytes.toString('hex');
     record.afterSize=before.size+bytes.length;record.afterFileId=before.fileId;
@@ -248,7 +252,7 @@ async function restoreOne(file,override,signal){
     if(!st.isFile()||st.isSymbolicLink())throw Error('恢复目标不是普通文件');
     handle=await fs.open(target,constants.O_RDWR | (constants.O_NOFOLLOW||0));
     const current=snap(await handle.stat({bigint:true}));
-    const openedPath=await fs.lstat(target);
+    const openedPath=await fs.lstat(target,{bigint:true}); // same precision as above
     if(!openedPath.isFile()||openedPath.isSymbolicLink()||statId(openedPath)!==current.fileId)
       throw Error('恢复目标文件身份变化，拒绝修改');
     out.restoredSize=current.size;

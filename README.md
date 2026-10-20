@@ -1,70 +1,75 @@
-# XIMA Tools — Electron Edition
+# HALO
 
-本项目基于 [XIMA Desktop](https://github.com/weepwood/xima-desktop) 的原始 React 19 + CSS UI，移植为 Electron 桌面客户端。
+**本机文件与视频工作台。** 洗码、校验恢复、视频截图、按大小切分——全部在本地完成，不联网、不上传。
 
-原项目 Tauri/Rust 后端已由 Electron 主进程的 Node.js 文件系统和 FFmpeg 服务替代；界面的配色、布局、导航、卡片、设置页和交互文件来自原仓库。
+Electron 44 + React 19 + Vite 7，界面为手写 CSS（无 UI 框架）。
+
+```
+HALO/
+├─ src/            渲染进程：shell（标题栏/侧栏/面板）、features、design system
+├─ electron/       主进程：文件引擎、历史、视频、切分、IPC 校验
+├─ assets/         图标：icon.svg（源文件）、icon.png、icon.ico、tray.png
+├─ tests/          node:test：引擎 / 切分 / 视频历史 / IPC 参数边界
+└─ docs/           HALO-design.md（工程分析与设计系统说明）
+```
 
 ## 开发与打包
 
 建议 Node.js 24+。
 
-    npm ci
-    npm run dev
+```bash
+npm ci
+npm run dev
 
-    npm test
-    npm run build
-    npm run dist:win
+npm test          # 26 项回归测试
+npm run build     # tsc --noEmit + vite build
+npm run dist:win  # NSIS 安装器 + Portable
+```
 
-Windows x64 安装包：NSIS 安装器、Portable 便携程序。CI 运行后，在 GitHub Actions Artifacts 中下载构建结果。
+Windows x64 产物：`HALO-Setup-<version>-x64.exe`、`HALO-Portable-<version>-x64.exe`。CI 通过后在 GitHub Actions Artifacts 的 `HALO-Windows` 中下载。
 
-## 迁移功能
+## 功能
 
-| 功能 | Electron 实现 |
+| 功能 | 实现 |
 |---|---|
-| 标题栏、主题、侧栏、设置、快捷键 | 直接复用 React 和原 CSS |
-| 扫描过滤、文件统计、指纹核验 | Node.js fs + SHA-256 |
-| 文件洗码 | 与 Rust 相同的 32 字节 XIMA 可恢复标记、兼容模式 5 字节随机标记 |
-| 完整/抽样/快速校验 | SHA-256、随机/定点区块采样、元数据检查 |
-| 停止任务、确认与安全恢复 | AbortController、Electron Dialog、标记/大小/内容核验 |
-| 洗码/恢复历史、CSV | JSON 历史、同步 JSONL 日志、CSV 导出 |
-| 视频定时截图与记录 | ffprobe/ffmpeg、PNG 图片、进度、停止 |
-| 截图画廊、放大预览、输出目录 | 限制访问的 xima://image 协议 |
+| 标题栏、主题、侧栏、设置、快捷键 | React + 自研 shell（可收起三栏 + 悬停预览） |
+| 扫描过滤、文件统计、指纹核验 | Node.js fs + SHA-256 + 三段内容采样 |
+| 文件洗码 | 32 字节可恢复标记；兼容模式 5 字节随机标记 |
+| 完整 / 抽样 / 快速校验 | 全文件 SHA-256、随机与定点区块采样、元数据检查 |
+| 停止任务、确认与安全恢复 | AbortController、系统对话框、标记 / 大小 / 内容三重核验 |
+| 洗码 / 恢复历史、CSV | JSON 历史 + 同步 JSONL 日志 + CSV 导出 |
+| 视频定时截图 | ffprobe / ffmpeg、PNG 输出、实时进度、停止 |
+| 截图画廊与放大预览 | 受限 `halo://image` 协议 |
+| 按大小切分视频 | `-c copy` 无损切分，严格校验每个分片不超阈值 |
 | 托盘、通知、开机启动 | Electron 主进程 |
 
-## 安全与兼容说明
+## 设计系统
 
-- 本地文件修改是高风险操作。**正式使用前请备份重要文件**，并在真实的 Windows 环境运行回归测试。
-- 渲染进程关闭 Node.js Integration，开启 Context Isolation 和 Sandbox；受控 Preload + IPC 只允许显式列出的操作。
-- 新版本使用自己的 Electron 数据目录（历史、设置、任务记录）；**不自动导入或删除原 Tauri 历史**。原 Rust 的尾部标记格式兼容，但记录、文件身份和异常恢复仍须单独验证后才能迁移。
-- 视频工具来自 ffmpeg-static 与 ffprobe-static，支持 XIMA_VIDEO_TOOLS 环境变量指定自己的 FFmpeg/FFprobe。实际分发前需要核查第三方二进制许可证、附带声明和源代码提供义务。
-- 当前截图画廊直接使用原始 PNG 作为网格图片，没有 Tauri 版的磁盘缩略图缓存，大图加载性能可能有差异。
-- Windows NSIS 安装包尚未完成真实机器的安装/卸载与界面交互验收，CI 通过也不等于功能完全等价。
+三层：`styles/tokens.css`（原子令牌）→ `styles/themes.css`（双主题 + 语义别名）→ `components/ui.css`（原语）。
+功能样式表只做布局，**不重新定义原语**。
+
+- 主色靛青 `#4658E8` / 深色 `#6D7CFF`；成功、警告、危险各有独立的弱底与可读文字色。
+- 动效只用位移与透明度，220–320ms，`prefers-reduced-motion` 与设置页开关双重降级。
+- 完整规范（含时长曲线表与决策理由）见 [`docs/HALO-design.md`](docs/HALO-design.md)。
+
+## 安全与兼容
+
+- **洗码会直接修改原文件。** 正式使用前请备份重要文件，并在真实 Windows 环境做回归验证。
+- 渲染进程关闭 Node 集成，启用 contextIsolation + sandbox；preload 只暴露显式命令白名单，主进程逐条校验入参与路径。
+- CSP 禁止远程脚本，主题在首帧前由 `public/theme-init.js` 应用，无白闪。
+- 视频工具来自 `ffmpeg-static` / `ffprobe-static`，可用 `HALO_VIDEO_TOOLS` 指向自备目录。分发前需核查第三方二进制许可证与源代码提供义务。
+- 单个损坏的历史或恢复日志不会阻断其他记录；损坏文件原样保留，设置页可查看诊断。
+- 扫描指纹包含文件身份、修改时间与头/中/尾采样，**不等于完整内容哈希**——关键文件请用完整 SHA-256 校验。
+
+## 品牌重命名说明
+
+本项目原为 XIMA Desktop 的 Electron 移植版，现统一更名为 **HALO**：界面、CSS 前缀、IPC 通道、协议、环境变量、安装产物全部同步。
+
+- 磁盘上的洗码标记字节（`XIMA` 的 ASCII，32 字节格式）**保持不变**，已洗码文件仍可正常识别与恢复。
+- 应用数据目录改为 `%APPDATA%\halo-desktop`，旧目录不会自动迁移；升级后主题、面板尺寸与上次目录会回到默认一次。
+- 环境变量改为 `HALO_DEV_URL` / `HALO_VIDEO_TOOLS`；自定义协议改为 `halo://`。
 
 ## 来源和授权
 
-原始项目：[weepwood/xima-desktop](https://github.com/weepwood/xima-desktop)。
-
-前端源码由原仓库移植，遵循仓库保留的 MIT LICENSE。外部 FFmpeg/FFprobe 二进制遵循各自许可证。
-
-## v0.2.0 安全与稳定性
-
-- Electron 单实例锁：第二次启动会激活已有窗口，避免多进程同时编辑同一文件。
-- 扫描指纹纳入文件身份、修改时间及头/中/尾三个不超过 4 KiB 的内容采样点，写入前重新校验；即使 Windows 时间戳粒度不足也能发现采样区域的变化。
-- IPC 入参采用明确命令列表、类型与路径约束；渲染侧不暴露 Node 文件系统接口。
-- CSP 阻止远程代码/脚本加载；主题初始化已移至独立静态资源。
-- 单个损坏的视频历史或恢复日志不再阻断其他有效记录；损坏文件原样保留，设置页可以查看历史诊断。
-- CI 使用 npm lockfile 与 `npm ci` 实现可重复依赖安装，额外运行参数边界测试。
-
-**注意：** 扫描指纹还包含小范围内容采样，但不等于完整内容哈希；恶意修改或只修改未采样区域的变化仍可能绕过。关键文件请使用完整 SHA-256 校验。大量小文件预扫描会额外打开并读取文件片段，可能增加扫描耗时。首次升级后建议用测试文件验证恢复流程；不要把历史记录当成原文件备份。
-
-## 视频按大小切分（新增）
-
-左侧工作区选择 **视频按大小切分**，选择本地视频后设置“单个分片最大大小”，默认 **4.5 GB**（十进制，即 4,500,000,000 字节）。支持 2 / 4.5 / 8 GB 快捷预设和自定义阈值，输出到源视频同目录下新建的 `文件名_分片` 文件夹，也可自选输出父目录。
-
-- 只有当源视频大小 **超过阈值** 才切分；否则显示“无需切分”，不会复制文件。
-- FFmpeg 使用 `-c copy` **不重新编码**，尽量保留视频/音频/字幕轨及画质。分割发生在视频关键帧附近，各分片可单独播放，时间点可能不是精确等分。
-- 根据源文件大小、时长预估切分时间；完成后逐个检查分片真实大小。若有超限，删除本次临时分片并缩短切分时间重试，最多 9 次；**无法满足严格上限时直接失败**，不会把超限文件当成完成结果。
-- 原视频只读、保留；不会主动删除。请确保磁盘有足够空间。取消时删除当前尝试的临时分片；异常断电时仍可能留下 `attempt-*` 文件夹，需人工检查清理。
-- 常用 MP4/MKV/MOV/WebM 尽量保持相同封装；不适用的原始封装会尝试 MKV，但编解码器或字幕格式可能不支持无损复制。部分编码格式、关键帧分布和文件结构可能无法在无转码条件下严格满足大小上限。
-
-Windows CI 利用 FFmpeg 合成真实小视频，验证分片大小不超限、可用 FFprobe 读取、原文件 SHA-256 不变、无需切分时不生成文件以及任务历史保存。
+原始项目：[weepwood/xima-desktop](https://github.com/weepwood/xima-desktop)（Tauri + Rust）。
+前端源码由原仓库移植并按 MIT LICENSE 使用；FFmpeg / FFprobe 二进制遵循各自许可证。

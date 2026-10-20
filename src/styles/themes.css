@@ -1,61 +1,139 @@
 /*
- * Theme palettes.
+ * HALO theme palettes.
  *
- *   light: accent #339CFF, background #FFFFFF, foreground #1A1C1F
- *   dark:  accent #0169CC, background #111111, foreground #FCFCFC
+ *   light: accent #4658E8 on #FFFFFF, text #151821
+ *   dark:  accent #6D7CFF on #101319, text #EEF0F6
  *
- * Adding a theme = one new [data-theme="…"] block overriding these
- * variables. Nothing else in the codebase needs to change.
+ * Adding a theme = one new [data-theme="…"] block. A block must define the
+ * palette (--color-*) and the semantic aliases at the bottom of each block
+ * (--halo-*), because features consume the aliases, not the raw colours.
+ *
+ * The alias layer exists so a feature never has to know whether the current
+ * theme needs a darkened accent for contrast: it just asks for
+ * --halo-action-color.
  */
 
 [data-theme="light"] {
   color-scheme: light;
 
-  --color-bg-base: #f2f2f2; /* window / sidebar base */
+  /* surfaces — cool greys, four levels of depth */
+  --color-bg-base: #eceef4; /* window chrome / sidebar */
   --color-bg-surface: #ffffff; /* main content */
   --color-bg-elevated: #ffffff; /* cards, popovers */
-  --color-bg-inset: #f5f5f5; /* rows inside panels, inputs */
-  --color-bg-hover: rgba(0, 0, 0, 0.05);
-  --color-bg-active: rgba(0, 0, 0, 0.08);
+  --color-bg-inset: #f4f6fa; /* rows inside panels, inputs, table head */
+  --color-bg-hover: rgba(18, 24, 45, 0.045);
+  --color-bg-active: rgba(18, 24, 45, 0.08);
+  --color-bg-canvas: #f7f8fc; /* padded scroll areas behind cards */
 
-  --color-border: rgba(0, 0, 0, 0.09);
-  --color-border-strong: rgba(0, 0, 0, 0.16);
+  --color-border: rgba(18, 24, 45, 0.085);
+  --color-border-strong: rgba(18, 24, 45, 0.16);
 
-  --color-text: #1a1c1f;
-  --color-text-secondary: #6e6e73;
-  --color-text-tertiary: #a0a0a5;
+  /* text */
+  --color-text: #151821;
+  --color-text-secondary: #5b6273;
+  --color-text-tertiary: #7b8496;
 
-  --color-accent: #339cff;
+  /* brand + state */
+  --color-accent: #4658e8;
   --color-accent-text: #ffffff;
-  --color-warning: #d97a2b;
-  --color-danger: #d93a3a;
-  --color-success: #2f9e44;
+  --color-accent-weak: rgba(70, 88, 232, 0.085);
+  --color-accent-border: rgba(70, 88, 232, 0.34);
+  --color-focus: #4658e8;
 
-  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08);
+  --color-warning: #b9691a;
+  --color-danger: #cd3b3b;
+  --color-success: #1c8a4f;
+  --color-warning-weak: rgba(185, 105, 26, 0.1);
+  --color-danger-weak: rgba(205, 59, 59, 0.09);
+  --color-success-weak: rgba(28, 138, 79, 0.1);
+
+  --color-scrim: rgba(12, 16, 28, 0.42);
+
+  /* Brand spectrum: the halo ring in the title bar and the app icon. */
+  --halo-grad-a: #4658e8;
+  --halo-grad-b: #2f9fe0;
+  --halo-grad-c: #7d5cf0;
+  --gradient-halo: conic-gradient(
+    from 200deg,
+    #4658e8,
+    #2f9fe0,
+    #7d5cf0,
+    #4658e8
+  );
+
+  --elev-1: 0 1px 2px rgba(9, 12, 24, 0.06);
+  --elev-2: 0 2px 6px rgba(9, 12, 24, 0.07), 0 1px 2px rgba(9, 12, 24, 0.04);
+  --elev-3: 0 10px 26px rgba(9, 12, 24, 0.12), 0 2px 6px rgba(9, 12, 24, 0.06);
+  --elev-4: 0 24px 60px rgba(4, 6, 14, 0.24), 0 6px 16px rgba(4, 6, 14, 0.12);
+  --shadow-popover: var(--elev-3);
+
+  --color-scrollbar: rgba(18, 24, 45, 0.18);
+  --color-scrollbar-hover: rgba(18, 24, 45, 0.3);
+
+  /* Semantic aliases consumed by feature stylesheets. */
+  --halo-action-color: var(--color-accent);
+  --halo-focus-color: var(--color-focus);
+  --halo-success-text: #17734a;
+  --halo-danger-text: #b62f2f;
+  --halo-warning-text: #9c590f;
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --color-bg-base: #111111; /* window / sidebar base */
-  --color-bg-surface: #212121; /* main content */
-  --color-bg-elevated: #2a2a2a; /* cards, popovers */
-  --color-bg-inset: #2a2a2a; /* rows inside panels, inputs */
-  --color-bg-hover: rgba(255, 255, 255, 0.06);
-  --color-bg-active: rgba(255, 255, 255, 0.1);
+  --color-bg-base: #0a0c11; /* window chrome / sidebar */
+  --color-bg-surface: #101319; /* main content */
+  --color-bg-elevated: #171b23; /* cards, popovers */
+  --color-bg-inset: #1a1f28; /* rows inside panels, inputs, table head */
+  --color-bg-hover: rgba(255, 255, 255, 0.055);
+  --color-bg-active: rgba(255, 255, 255, 0.09);
+  --color-bg-canvas: #0d1016;
 
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-strong: rgba(255, 255, 255, 0.16);
+  --color-border: rgba(255, 255, 255, 0.085);
+  --color-border-strong: rgba(255, 255, 255, 0.15);
 
-  --color-text: #fcfcfc;
-  --color-text-secondary: #a6a6ab;
-  --color-text-tertiary: #6e6e73;
+  --color-text: #eef0f6;
+  --color-text-secondary: #9aa2b5;
+  --color-text-tertiary: #7d8799;
 
-  --color-accent: #0169cc;
-  --color-accent-text: #ffffff;
-  --color-warning: #e08543;
-  --color-danger: #e5534b;
-  --color-success: #46a758;
+  --color-accent: #6d7cff;
+  --color-accent-text: #0a0c11;
+  --color-accent-weak: rgba(109, 124, 255, 0.14);
+  --color-accent-border: rgba(109, 124, 255, 0.42);
+  --color-focus: #8b98ff;
 
-  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --color-warning: #e2913f;
+  --color-danger: #e5645c;
+  --color-success: #4cb87a;
+  --color-warning-weak: rgba(226, 145, 63, 0.14);
+  --color-danger-weak: rgba(229, 100, 92, 0.13);
+  --color-success-weak: rgba(76, 184, 122, 0.13);
+
+  --color-scrim: rgba(4, 6, 12, 0.6);
+
+  --halo-grad-a: #8b98ff;
+  --halo-grad-b: #47cdea;
+  --halo-grad-c: #b18cff;
+  --gradient-halo: conic-gradient(
+    from 200deg,
+    #8b98ff,
+    #47cdea,
+    #b18cff,
+    #8b98ff
+  );
+
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --elev-2: 0 2px 8px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --elev-3: 0 12px 30px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --elev-4: 0 28px 70px rgba(0, 0, 0, 0.7), 0 8px 20px rgba(0, 0, 0, 0.5);
+  --shadow-popover: var(--elev-3);
+
+  --color-scrollbar: rgba(255, 255, 255, 0.16);
+  --color-scrollbar-hover: rgba(255, 255, 255, 0.28);
+
+  --halo-action-color: var(--color-accent);
+  --halo-focus-color: var(--color-focus);
+  --halo-success-text: #6fd398;
+  --halo-danger-text: #f08a83;
+  --halo-warning-text: #edab6a;
 }

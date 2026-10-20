@@ -35,7 +35,7 @@ test('new IPC routes enforce bounds and absolute paths',()=>{
   assert.throws(()=>validateCommand('open_split_output',{taskId:'invalid'}),/分片任务编号/);
 });
 test('corrupt split history is isolated from valid tasks',async t=>{
-  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'xima-split-history-'));
+  const dir=await fs.mkdtemp(path.join(os.tmpdir(),'halo-split-history-'));
   t.after(()=>fs.rm(dir,{recursive:true,force:true}));
   const service=new SplitService(dir,null);
   const id='f4932154-45d0-46ea-9093-f82376e431a2';

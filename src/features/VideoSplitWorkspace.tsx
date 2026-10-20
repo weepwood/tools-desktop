@@ -7,7 +7,7 @@ import { useTaskStatus, taskLabel } from "../lib/taskStatus";
 import { useSettings } from "../lib/settingsStore";
 import { CloseIcon, FolderIcon, SplitIcon } from "../lib/icons";
 import type { VideoInfo, VideoSplitRecord, VideoSplitEvent } from "../types";
-import "./XimaWorkspace.css";
+import "./HaloWorkspace.css";
 import "./VideoScreenshotWorkspace.css";
 import "./VideoSplitWorkspace.css";
 
@@ -25,8 +25,8 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
   const desktop = isTauri();
   const taskStatus = useTaskStatus();
   const { settings } = useSettings();
-  const [maxSizeText, setMaxSizeText] = usePersistedState("xima:split-max-gb", "4.5");
-  const [outputParent, setOutputParent] = usePersistedState("xima:split-output", "");
+  const [maxSizeText, setMaxSizeText] = usePersistedState("halo:split-max-gb", "4.5");
+  const [outputParent, setOutputParent] = usePersistedState("halo:split-output", "");
   const [video, setVideo] = useState<VideoInfo | null>(null);
   const [probing, setProbing] = useState(false);
   const [running, setRunning] = useState(false);
@@ -91,7 +91,7 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
   }
   useEffect(() => {
     if(!desktop || !active || busy){setDragging(false);return;}
-    const stop=window.xima?.on<{type:string;paths:string[]}>("drag-drop", payload=>{
+    const stop=window.halo?.on<{type:string;paths:string[]}>("drag-drop", payload=>{
       if(payload.type==="enter"||payload.type==="over"){setDragging(true);return;}
       setDragging(false);
       if(payload.type!=="drop"||lock.current)return;
@@ -116,7 +116,7 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
         : result.status==="skipped" ? "文件大小未超过阈值，无需切分。"
         : result.error ?? "任务已停止。";
       setNotice({type:result.status==="completed"?"success":result.status==="failed"?"error":"info",text:message});
-      if(settings.notifications)void sendNotification("XIMA 视频切分",message).catch(()=>{});
+      if(settings.notifications)void sendNotification("HALO 视频切分",message).catch(()=>{});
     } catch(error) {setNotice({type:"error",text:errorMessage(error)});}
     finally {setRunning(false);setStopping(false);lock.current=false;}
   }
@@ -131,18 +131,18 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
     catch(error){setNotice({type:"error",text:errorMessage(error)});}
   }
   const parts = selected?.parts ?? [];
-  return <div className="xima-workspace video-workspace video-split-workspace" data-dragging={dragging}>
-    <header className="xima-page-header">
+  return <div className="halo-workspace video-workspace video-split-workspace" data-dragging={dragging}>
+    <header className="halo-page-header">
       <div><h1>视频按大小切分</h1>
         <p>把超出指定容量的视频分成多个可独立播放的文件，默认每个不超过 4.5 GB。</p></div>
-      <span className="xima-muted">FFmpeg · 无损封装切分</span>
+      <span className="halo-muted">FFmpeg · 无损封装切分</span>
     </header>
-    <div className="xima-notice-stack">
-      {!desktop && <div className="xima-notice info">请在 Electron 桌面版中选择视频并执行切分。</div>}
-      {foreignTask && <div className="xima-notice info" role="status">
+    <div className="halo-notice-stack">
+      {!desktop && <div className="halo-notice info">请在 Electron 桌面版中选择视频并执行切分。</div>}
+      {foreignTask && <div className="halo-notice info" role="status">
         <span>{taskLabel(taskStatus.kind)}正在运行，完成后才能切分视频。</span>
       </div>}
-      {notice && <div className={"xima-notice "+notice.type} role={notice.type==="error"?"alert":"status"}>
+      {notice && <div className={"halo-notice "+notice.type} role={notice.type==="error"?"alert":"status"}>
         <span>{notice.text}</span><button aria-label="关闭提示" onClick={()=>setNotice(null)}>
           <CloseIcon aria-hidden="true"/></button></div>}
     </div>
@@ -158,14 +158,14 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
             <span>{video.sizeBytes!==undefined?prettyBytes(video.sizeBytes)+" · ":""}{video.width} × {video.height}
               {video.durationSeconds ? " · "+Math.round(video.durationSeconds)+" 秒":""}</span>
           </div>}
-          <div className="xima-field">
+          <div className="halo-field">
             <label htmlFor="split-max-size">单个分片最大大小</label>
-            <div className="xima-presets" role="group" aria-label="分片大小预设">
-              {[2,4.5,8].map(value=><button key={value} className="xima-preset"
+            <div className="halo-presets" role="group" aria-label="分片大小预设">
+              {[2,4.5,8].map(value=><button key={value} className="halo-preset"
                 aria-pressed={maxSizeGb===value} disabled={busy} onClick={()=>setMaxSizeText(String(value))}>
                 {value} GB</button>)}
             </div>
-            <div className="xima-input-unit"><input id="split-max-size" type="number"
+            <div className="halo-input-unit"><input id="split-max-size" type="number"
               min="0.00001" max="10000" step="0.1" inputMode="decimal"
               value={maxSizeText} disabled={busy} onChange={event=>setMaxSizeText(event.target.value)}
               aria-invalid={!validSize} aria-describedby="split-size-hint"/><span>GB</span></div>
@@ -173,12 +173,12 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
               ? "1 GB = 1,000,000,000 字节，输出分片会逐个核验。"
               : "请输入大于等于 0.00001 且不超过 10000 的 GB 数值。"}</small>
           </div>
-          <div className="xima-field"><label>保存位置</label>
+          <div className="halo-field"><label>保存位置</label>
             <button className="video-folder" disabled={!desktop||busy} onClick={()=>void chooseOutput()}>
               <FolderIcon aria-hidden="true"/>
               <span>{outputParent || "与原视频同目录（创建独立子文件夹）"}</span><span>选择</span>
             </button>
-            {outputParent && <button className="xima-link-button" disabled={busy}
+            {outputParent && <button className="halo-link-button" disabled={busy}
               onClick={()=>setOutputParent("")}>恢复默认位置</button>}
             <small>以“视频名_分片”创建新文件夹，避免覆盖现有文件。</small>
           </div>
@@ -188,26 +188,26 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
             <p>MP4、MKV、MOV、WebM 尽量保留原封装；其他格式通常输出为 MKV。部分编码或字幕流可能无法直接复制。</p>
           </details>
         </div>
-        <div className="xima-action-footer">
-          <p className="xima-action-hint">{!video?"先选择一个视频"
+        <div className="halo-action-footer">
+          <p className="halo-action-hint">{!video?"先选择一个视频"
             : !validSize?"请输入有效的分片大小"
             : !overLimit?"文件没有超过目标大小，无需切分"
             : "预计至少 "+Math.ceil((video.sizeBytes ?? 0)/maxSizeBytes)+" 个分片（以结果为准）"}</p>
-          <div className="xima-button-row">
-            <button className="xima-button primary" disabled={!desktop||busy||!video||!validSize||!overLimit}
+          <div className="halo-button-row">
+            <button className="halo-button primary" disabled={!desktop||busy||!video||!validSize||!overLimit}
               onClick={()=>void start()}>开始切分</button>
-            {running && <button className="xima-button danger" disabled={stopping||taskStatus.cancelling}
+            {running && <button className="halo-button danger" disabled={stopping||taskStatus.cancelling}
               onClick={()=>void stop()}>{stopping?"正在停止…":"停止"}</button>}
           </div>
-          <p className="xima-safety-note">原视频不会删除或修改。请预留充足磁盘空间；取消任务会删除当前尝试产生的临时文件。</p>
+          <p className="halo-safety-note">原视频不会删除或修改。请预留充足磁盘空间；取消任务会删除当前尝试产生的临时文件。</p>
         </div>
       </aside>
       <section className="video-results" aria-label="切分结果">
         <div className="video-task">
-          <div className="xima-card-heading"><h2>{running?"正在切分视频":selected?labels[selected.status]:"等待任务"}</h2>
-            <span className="xima-muted">{running?"第 "+(progress?.attempt??1)+" 次尝试":selected?
+          <div className="halo-card-heading"><h2>{running?"正在切分视频":selected?labels[selected.status]:"等待任务"}</h2>
+            <span className="halo-muted">{running?"第 "+(progress?.attempt??1)+" 次尝试":selected?
               selected.parts.length+" 个分片":""}</span></div>
-          {(running||selected) && <div className="xima-progress" data-indeterminate={running&&progressPercent===null}
+          {(running||selected) && <div className="halo-progress" data-indeterminate={running&&progressPercent===null}
             role="progressbar" aria-label="视频切分进度" aria-valuemin={0} aria-valuemax={100}
             aria-valuenow={progressPercent??undefined}>
             <div style={{width:(progressPercent??(running?30:0))+"%"}}/></div>}
@@ -218,7 +218,7 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
         </div>
         <div className="video-gallery-head"><h2>分片文件</h2>
           {selected?.outputDir && !running &&
-            <button className="xima-button secondary compact" onClick={()=>void openFolder(selected)}>
+            <button className="halo-button secondary compact" onClick={()=>void openFolder(selected)}>
               打开输出目录</button>}
         </div>
         <div className="video-gallery-scroll split-results-scroll">
@@ -235,15 +235,15 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
                 :"文件超过所选大小才开始切分；完成后可在这里核对每个分片的真实大小。"}</p>
             </div>}
         </div>
-        <div className="split-history"><div className="video-gallery-head"><h2>最近切分任务</h2>
-          <button className="xima-button secondary compact" disabled={!desktop||loadingHistory||running}
+        <div className="split-history" data-empty={!recent.length && !loadingHistory}><div className="video-gallery-head"><h2>最近切分任务</h2>
+          <button className="halo-button secondary compact" disabled={!desktop||loadingHistory||running}
             onClick={()=>void refresh()}>{loadingHistory?"读取中…":"刷新"}</button></div>
           <div className="split-history-list">{recent.slice(0,20).map(task=>
             <button key={task.id} aria-pressed={selected?.id===task.id} disabled={running}
               onClick={()=>{setSelected(task);setProgress(null);}}>
               <strong>{task.videoName}</strong><span>{labels[task.status]} · {task.parts.length} 个 · {task.maxSizeGb} GB</span>
             </button>)}
-            {!recent.length && <p className="xima-muted">暂无历史任务。</p>}
+            {!recent.length && <p className="halo-muted">暂无历史任务。</p>}
           </div>
         </div>
       </section>

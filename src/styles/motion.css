@@ -1,0 +1,157 @@
+/*
+ * HALO motion.
+ *
+ * Principles
+ *   1. Motion explains a state change, it never decorates an idle surface.
+ *   2. Entrances are soft and short (fade + 6–8px rise), exits are shorter.
+ *   3. Anything that loops (running task, shimmer) is ambient and low-contrast
+ *      so it reads at a glance without pulling focus.
+ *   4. Everything here is disabled by the reduce-motion switch in
+ *      global.css, so nothing needs a per-rule guard.
+ *
+ * Durations and easing come from tokens.css (--dur-*, --ease-*).
+ */
+
+/* ------------------------------------------------------------- keyframes */
+
+@keyframes halo-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Default entrance: content resolves into place instead of popping. */
+@keyframes halo-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes halo-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes halo-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Progress while a task runs: a highlight sweeps the filled track. */
+@keyframes halo-shimmer {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(320%);
+  }
+}
+
+/* Live indicator: a halo that keeps expanding, like a radar ping. */
+@keyframes halo-ping {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 0.55;
+  }
+  70% {
+    box-shadow: 0 0 0 5px transparent;
+    opacity: 0;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+    opacity: 0;
+  }
+}
+
+@keyframes halo-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes halo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Brand mark: the ring slowly rotates only on hover/focus, never at rest. */
+@keyframes halo-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ------------------------------------------------------------ utilities */
+
+.halo-enter {
+  animation: halo-rise-in var(--dur-4) var(--ease-emphasized) both;
+}
+
+.halo-enter-fade {
+  animation: halo-fade-in var(--dur-3) var(--ease-standard) both;
+}
+
+/* Staggered list entrance: cap the cascade so late rows never lag behind. */
+.halo-stagger > * {
+  animation: halo-rise-in var(--dur-4) var(--ease-emphasized) both;
+}
+.halo-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.halo-stagger > *:nth-child(2) { animation-delay: calc(var(--stagger) * 1); }
+.halo-stagger > *:nth-child(3) { animation-delay: calc(var(--stagger) * 2); }
+.halo-stagger > *:nth-child(4) { animation-delay: calc(var(--stagger) * 3); }
+.halo-stagger > *:nth-child(5) { animation-delay: calc(var(--stagger) * 4); }
+.halo-stagger > *:nth-child(6) { animation-delay: calc(var(--stagger) * 5); }
+.halo-stagger > *:nth-child(7) { animation-delay: calc(var(--stagger) * 6); }
+.halo-stagger > *:nth-child(8) { animation-delay: calc(var(--stagger) * 7); }
+.halo-stagger > *:nth-child(n + 9) { animation-delay: calc(var(--stagger) * 8); }
+
+/* Shared "live" dot treatment used by task state and scan state. */
+.halo-live-dot {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.halo-live-dot[data-live="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  color: currentColor;
+  animation: halo-ping var(--dur-5) var(--ease-standard) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .halo-enter,
+  .halo-enter-fade,
+  .halo-stagger > *,
+  .halo-live-dot[data-live="true"]::after {
+    animation: none;
+  }
+}
