@@ -133,6 +133,12 @@ function wire(){
       case 'wash_files':return task('wash',signal=>wash(args.request,signal,send,history));
       case 'restore_session':return task('restore',signal=>restore(args.request,signal,send,history));
       case 'list_history':return history.summaries();
+      case 'storage_diagnostics':{
+        const diagnostics=[];
+        try{await history.load();diagnostics.push(...history.warnings);}catch(error){diagnostics.push('历史索引无法读取：'+error.message);}
+        try{await video.list();diagnostics.push(...video.warnings);}catch(error){diagnostics.push('视频历史无法读取：'+error.message);}
+        return diagnostics;
+      }
       case 'get_history_session':return history.getSession(args.sessionId);
       case 'clear_history':return task('history',()=>history.clear());
       case 'export_session_csv':return history.exportCsv(args.sessionId,args.outputPath);

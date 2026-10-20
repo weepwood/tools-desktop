@@ -23,7 +23,7 @@ function wash(r){
 }
 const emptyCommands=new Set(['window_minimize','window_toggle_maximize','window_close',
   'is_autostart_enabled','task_running','task_status','cancel_task',
-  'list_history','clear_history','video_tool_status','list_video_tasks']);
+  'list_history','clear_history','storage_diagnostics','video_tool_status','list_video_tasks']);
 function validateCommand(command,args={}){
   check(typeof command==='string'&&command.length<=80,'命令');
   check(object(args),'参数对象');
