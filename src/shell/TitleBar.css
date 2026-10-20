@@ -1,0 +1,196 @@
+/*
+ * Fixed transparent overlay across the whole window top. Panels slide
+ * underneath it, so the buttons keep one position; only the
+ * background behind them changes.
+ */
+.titlebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--titlebar-height);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-3);
+  pointer-events: auto;
+}
+
+/* Start past the inset macOS traffic lights (fixed to the window). */
+.titlebar[data-mac="true"] .titlebar-left {
+  padding-left: var(--traffic-lights-width);
+}
+
+.titlebar-left,
+.titlebar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.titlebar-brand {
+  margin-left: 5px;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  letter-spacing: .04em;
+}
+
+/* Right cluster stays pinned to the window edge even when it reserves
+   the sidebar's width (below), so its toggles never drift inward. */
+.titlebar-right {
+  justify-content: flex-end;
+}
+
+/* When the left sidebar is open, the left cluster spans (at least) the
+   sidebar width so the tab strip begins at the content edge and never
+   overlaps the sidebar. min-width (not width) keeps the icons from
+   clipping at narrow sidebar sizes; it animates in step with the grid. */
+.titlebar-left {
+  transition: min-width var(--transition-panel);
+}
+
+.app-shell[data-left-open="true"] .titlebar-left {
+  min-width: calc(var(--sidebar-width) - var(--space-3));
+}
+
+.app-shell[data-no-anim="true"] .titlebar-left {
+  transition: none;
+}
+
+/* Mirror of the left cluster: when the right sidebar is open the right
+   cluster reserves (at least) its width so the tab strip ends at the
+   content edge and never slides over the panel. */
+.titlebar-right {
+  transition: min-width var(--transition-panel);
+}
+
+.app-shell[data-right-open="true"] .titlebar-right {
+  min-width: calc(var(--right-panel-width) - var(--space-3));
+}
+
+.app-shell[data-no-anim="true"] .titlebar-right {
+  transition: none;
+}
+
+/* Buttons must stay clickable inside the drag region. */
+.titlebar button {
+  -webkit-app-region: no-drag;
+}
+
+/* ---- Tab strip (fills the middle of the row) ---- */
+
+.titlebar-tabs {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  /* Left inset matches the buttons' vertical inset (52px bar, 28px
+     buttons → 12px), so the first tab doesn't touch the sidebar edge. */
+  padding: 0 var(--space-2) 0 var(--space-3);
+}
+
+.titlebar-tabs-list {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  /* Tabs keep their natural width; once they overflow the reserved
+     middle region the strip scrolls horizontally instead of shrinking.
+     The scrollbar is hidden — it'd look out of place in the title bar. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.titlebar-tabs-list::-webkit-scrollbar {
+  display: none;
+}
+
+.titlebar-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  /* Keep the tab's natural width and never shrink it — the strip
+     scrolls instead. Titles still ellipsis at max-width for long names. */
+  flex-shrink: 0;
+  min-width: 0;
+  padding: 5px 6px 5px var(--space-3);
+  /* Every tab shows its outline so it reads as a button; the active one
+     is distinguished by a filled background, the rest stay transparent. */
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+  -webkit-app-region: no-drag;
+  transition: background var(--transition-fast), color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.titlebar-tab:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
+.titlebar-tab[data-active="true"] {
+  background: var(--color-bg-inset);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.titlebar-tab-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.titlebar-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-tertiary);
+  opacity: 0;
+  transition: opacity var(--transition-fast), background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.titlebar-tab:hover .titlebar-tab-close,
+.titlebar-tab[data-active="true"] .titlebar-tab-close {
+  opacity: 1;
+}
+
+.titlebar-tab-close:hover {
+  background: var(--color-bg-active);
+  color: var(--color-text);
+}
+
+.titlebar-tab-close svg {
+  width: 13px;
+  height: 13px;
+}
+
+.titlebar-tab-new {
+  flex-shrink: 0;
+}
+
+.titlebar-window-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-2);
+}
+
+.titlebar-close:hover {
+  background: var(--color-danger);
+  color: #fff;
+}

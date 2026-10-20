@@ -1,0 +1,76 @@
+.resize-handle {
+  position: absolute;
+  z-index: 45; /* above the floating title bar so the top stretch works */
+  -webkit-app-region: no-drag;
+}
+
+.resize-handle[data-edge="right"] {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+}
+
+.resize-handle[data-edge="left"] {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+}
+
+.resize-handle[data-edge="top"] {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 7px;
+  cursor: row-resize;
+}
+
+/* Edge highlight: a hair-wider line with a gradient that peaks at the
+   middle of the edge and fades out before its ends. */
+.resize-handle::after {
+  content: "";
+  position: absolute;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.resize-handle[data-edge="right"]::after,
+.resize-handle[data-edge="left"]::after {
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: linear-gradient(
+    to bottom,
+    transparent 8%,
+    var(--color-text-tertiary) 50%,
+    transparent 92%
+  );
+}
+
+.resize-handle[data-edge="right"]::after {
+  right: 0;
+}
+
+.resize-handle[data-edge="left"]::after {
+  left: 0;
+}
+
+.resize-handle[data-edge="top"]::after {
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1.5px;
+  background: linear-gradient(
+    to right,
+    transparent 8%,
+    var(--color-text-tertiary) 50%,
+    transparent 92%
+  );
+}
+
+.resize-handle:hover::after {
+  opacity: 1;
+}

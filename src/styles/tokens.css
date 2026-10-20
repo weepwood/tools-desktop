@@ -1,0 +1,53 @@
+/*
+ * Design tokens — single source of truth for the whole UI.
+ *
+ * Colors live here as light-theme defaults; themes.css overrides them
+ * per [data-theme]. Everything else (spacing, radii, sizes, fonts) is
+ * theme-independent.
+ */
+
+:root {
+  /* ---- Typography ---- */
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas,
+    "Liberation Mono", monospace;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px; /* sidebar / dense UI */
+  --text-md: 14px; /* main content base */
+  --text-lg: 16px;
+  --text-title: 20px; /* settings page title */
+  --text-hero: 28px; /* main view heading */
+
+  /* ---- Spacing ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* ---- Radii ---- */
+  --radius-sm: 6px; /* small buttons, menu items */
+  --radius-md: 10px; /* cards, settings rows, popovers */
+  --radius-lg: 16px; /* large cards / inputs */
+  --radius-full: 999px;
+
+  /* ---- Layout ---- */
+  --titlebar-height: 52px;
+  --traffic-lights-width: 80px; /* macOS inset traffic lights reserve */
+  --sidebar-width: 240px;
+  --right-panel-width: 380px;
+  --bottom-panel-height: 230px;
+  --settings-sidebar-width: 240px;
+  --settings-content-width: 540px;
+
+  /* ---- Motion ---- */
+  --transition-panel: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 0.15s ease;
+
+  /* ---- Shadows ---- */
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.18), 0 2px 6px rgba(0, 0, 0, 0.1);
+}
