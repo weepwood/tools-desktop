@@ -1,82 +1,47 @@
-# XIMA Desktop
+# XIMA Tools — Electron Edition
 
-XIMA 是一款本地文件哈希刷新、安全恢复与视频定时截图工具。桌面交互基于 [tauri-desktop-template](https://github.com/mihasm/tauri-desktop-template)，后端使用 Tauri/Rust 处理本地文件与 FFmpeg 子进程。
+本项目基于 [XIMA Desktop](https://github.com/weepwood/xima-desktop) 的原始 React 19 + CSS UI，移植为 Electron 桌面客户端。
 
-## 开发
+原项目 Tauri/Rust 后端已由 Electron 主进程的 Node.js 文件系统和 FFmpeg 服务替代；界面的配色、布局、导航、卡片、设置页和交互文件来自原仓库。
 
-```powershell
-npm install
-npm run video:prepare -- --from "C:/工具目录/bin"
-npm run tauri:dev
-```
+## 开发与打包
 
-前端开发服务器使用 `http://[::1]:5173`。仅预览界面可运行 `npm run dev`；文件处理需要桌面版。
+建议 Node.js 24+。
 
-Windows x64 的工具目录需包含真实的 `ffmpeg.exe`、`ffprobe.exe`，以及位于该目录或父目录的 LICENSE/COPYING 文件。准备脚本复制工具、许可证、版本和 SHA-256 清单到 `src-tauri/resources/video-tools/windows-x64`；二进制不提交 Git。开发时也可用 `XIMA_VIDEO_TOOLS` 指定工具目录，或使用 PATH 中的真实可执行文件，不执行 `.cmd/.bat` 包装器。
+    npm install
+    npm run dev
 
-打包 Windows 安装包：
+    npm test
+    npm run build
+    npm run dist:win
 
-```powershell
-npm run tauri:build -- --bundles nsis
-```
+Windows x64 安装包：NSIS 安装器、Portable 便携程序。CI 运行后，在 GitHub Actions Artifacts 中下载构建结果。
 
-安装包内置视频工具，使用时无需配置 PATH。首版的视频工具打包仅支持 Windows x64；其他平台需要准备对应工具及打包配置。公开分发前，应按所选 FFmpeg 构建附带许可证及对应源码和依赖材料。
+## 迁移功能
 
-验证改动：
+| 功能 | Electron 实现 |
+|---|---|
+| 标题栏、主题、侧栏、设置、快捷键 | 直接复用 React 和原 CSS |
+| 扫描过滤、文件统计、指纹核验 | Node.js fs + SHA-256 |
+| 文件洗码 | 与 Rust 相同的 32 字节 XIMA 可恢复标记、兼容模式 5 字节随机标记 |
+| 完整/抽样/快速校验 | SHA-256、随机/定点区块采样、元数据检查 |
+| 停止任务、确认与安全恢复 | AbortController、Electron Dialog、标记/大小/内容核验 |
+| 洗码/恢复历史、CSV | JSON 历史、同步 JSONL 日志、CSV 导出 |
+| 视频定时截图与记录 | ffprobe/ffmpeg、PNG 图片、进度、停止 |
+| 截图画廊、放大预览、输出目录 | 限制访问的 xima://image 协议 |
+| 托盘、通知、开机启动 | Electron 主进程 |
 
-```powershell
-npm run build
-cargo test --manifest-path src-tauri/Cargo.toml
-```
+## 安全与兼容说明
 
-开发者文档：
+- 本地文件修改是高风险操作。**正式使用前请备份重要文件**，并在真实的 Windows 环境运行回归测试。
+- 渲染进程关闭 Node.js Integration，开启 Context Isolation 和 Sandbox；受控 Preload + IPC 只允许显式列出的操作。
+- 新版本使用自己的 Electron 数据目录（历史、设置、任务记录）；**不自动导入或删除原 Tauri 历史**。原 Rust 的尾部标记格式兼容，但记录、文件身份和异常恢复仍须单独验证后才能迁移。
+- 视频工具来自 ffmpeg-static 与 ffprobe-static，支持 XIMA_VIDEO_TOOLS 环境变量指定自己的 FFmpeg/FFprobe。实际分发前需要核查第三方二进制许可证、附带声明和源代码提供义务。
+- 当前截图画廊直接使用原始 PNG 作为网格图片，没有 Tauri 版的磁盘缩略图缓存，大图加载性能可能有差异。
+- Windows NSIS 安装包尚未完成真实机器的安装/卸载与界面交互验收，CI 通过也不等于功能完全等价。
 
-- [项目架构](docs/architecture.md)：前后端边界、任务生命周期、文件持久化和视频处理流程。
-- [开发与发布指南](docs/development.md)：环境准备、常用命令、视频工具准备及打包注意事项。
+## 来源和授权
 
-## 功能
+原始项目：[weepwood/xima-desktop](https://github.com/weepwood/xima-desktop)。
 
-- 扫描指定文件夹，按扩展名、大小、隐藏项和递归选项筛选文件。
-- 追加可追踪尾部标记或使用兼容模式刷新文件哈希。
-- 支持快速、抽样和完整校验。
-- 预扫描显示无法读取的项目；启动前重新核对候选文件和大小，范围变化时要求重新扫描。
-- 扫描、洗码与恢复互斥执行，读取大文件时可停止任务；退出时等待任务停止并保存记录。
-- 在本机查看洗码历史、逐个恢复文件、选择移动后的文件位置，并导出 CSV。
-- 结果支持状态筛选、文件名或错误搜索、路径复制和分页；历史详情按需读取。
-- 历史保存在 Tauri 应用数据目录中的 `history.json`。应用标识保持为 `com.weepwood.xima`，以便继续读取已有 XIMA 历史。
-- 界面沿用模板的窗口标题栏、可调侧栏、浅色/深色主题和设置页面。
-- 切换到设置页保留任务状态；处理范围和筛选条件会记住，减少动态效果选项实际控制界面动画。
-- 视频截图：拖入或选择一个视频，默认每 60 秒保存一张原尺寸 PNG，支持 10/30/60 秒快捷选择及 1–86400 整数秒自定义间隔。
-- 默认在视频旁新建同名目录，也可选择其他保存位置；重复任务创建编号目录，保留旧图片和源视频。
-- 显示视频时长、分辨率、估算数量、进度与实际输出数量；可停止并保留已经完整写入的图片。
-- 截图结果提供每页 24 张缩略图、原图放大、路径复制、打开输出目录和最近任务记录；切换页面保留任务状态。
-- 视频探测和截图与扫描、洗码、恢复共用任务槽；真正退出应用时停止并回收视频子进程。
-
-## 视频截图与记录
-
-左侧进入「视频截图」，拖入一个视频或点击选择，调整间隔和保存位置后点击「开始截图」。完成或停止后可预览图片，点击图片放大，按 Esc 关闭。
-
-该功能移植自定时截图批处理：只使用第一个视频流，文件名从 `keyframes_001.png` 递增。它不识别关键词，也不筛选场景或编码关键帧。`fps` 按时间戳采样，图片序号不是精确源时间；预计数量仅作参考，短视频也由所用工具的取整规则决定输出。
-
-截图记录位于应用数据目录的 `video-tasks`，与洗码 `history.json` 和恢复日志分开。图片保存在用户选择的位置，缩略图缓存位于应用缓存目录的 `video-thumbnails`。图片被移动或目录被删除时，保留记录并提示原路径。异常退出后，尚未完成的截图记录显示为「已中断」。清除洗码历史不影响截图记录。
-
-真实媒体验证（需本机工具）：
-
-```powershell
-$env:XIMA_VIDEO_TEST_TOOLS = "C:/工具目录/bin"
-cargo test --manifest-path src-tauri/Cargo.toml real_ffmpeg_matches_script_handles_special_paths_and_preserves_source -- --ignored --nocapture
-```
-
-测试使用合成视频，核对中文和特殊字符路径、重复目录、源文件未改变、与原脚本逐张像素一致、短视频和停止行为。桌面操作与验证结果见 `docs/video-screenshot-verification.md`。
-
-## 记录与中断恢复
-
-每次洗码先在应用数据目录的 `journals` 中创建任务日志。追加文件字节前先记录恢复所需信息并同步日志，处理后再记录结果。正常结束时将日志合并到 `history.json`，通过临时文件替换保存，并将上一次历史保留为 `history.json.bak`。历史不再自动截断为最近 50 次任务。
-
-异常退出后重新打开应用，历史会读取尚未合并的日志，标出“任务中断”和“待校验”文件。可从这条历史尝试恢复；程序会先检查实际文件状态，已经恢复的文件会跳过，校验不一致的文件不会截断。日志只能保留已同步的信息，不能代替原文件备份。
-
-历史或完整日志条目损坏时会显示错误并保留原文件，阻止新洗码任务覆盖记录。请关闭应用、复制整个应用数据目录后再排查；`history.json.bak` 是上一次历史快照，可能缺少最近任务。保存失败会显示具体原因，需保留 `journals` 文件。
-
-“清除历史”删除当前历史和任务日志，不修改已处理文件；最近一次历史备份仍保留在应用数据目录，但不会自动加载。
-
-洗码会直接修改文件。恢复前会核验文件状态；校验不通过时不会移除尾部字节。建议重要文件先备份。
+前端源码由原仓库移植，遵循仓库保留的 MIT LICENSE。外部 FFmpeg/FFprobe 二进制遵循各自许可证。
