@@ -1,0 +1,131 @@
+/* ---- Toggle (iOS-style switch) ---- */
+
+.control-toggle {
+  position: relative;
+  width: 36px;
+  height: 21px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-border-strong);
+  transition: background var(--transition-fast);
+}
+
+.control-toggle[data-checked="true"] {
+  background: var(--color-accent);
+}
+
+.control-toggle:disabled {
+  opacity: 0.5;
+}
+
+.control-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 17px;
+  height: 17px;
+  border-radius: var(--radius-full);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform var(--transition-fast);
+}
+
+.control-toggle[data-checked="true"] .control-toggle-thumb {
+  transform: translateX(15px);
+}
+
+/* ---- Text input ---- */
+
+.control-text-input {
+  width: 180px;
+  padding: 5px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
+  font-size: var(--text-base);
+  outline: none;
+  user-select: text;
+  cursor: text;
+  transition: border-color var(--transition-fast);
+}
+
+.control-text-input:focus {
+  border-color: var(--color-accent);
+}
+
+.control-text-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+/* ---- Select ---- */
+
+.control-select {
+  position: relative;
+}
+
+.control-select select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 180px;
+  padding: 5px 28px 5px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
+  font-size: var(--text-base);
+  outline: none;
+}
+
+.control-select-chevron {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  width: 13px;
+  height: 13px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--color-text-secondary);
+}
+
+/* ---- Segmented control ---- */
+
+.control-segmented {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.control-segment {
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.control-segment:hover {
+  color: var(--color-text);
+}
+
+.control-segment[data-active="true"] {
+  background: var(--color-bg-active);
+  color: var(--color-text);
+}
+
+/* ---- Buttons ---- */
+
+.control-button {
+  padding: 5px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
+  font-size: var(--text-base);
+  transition: background var(--transition-fast);
+}
+
+.control-button:hover {
+  background: var(--color-bg-hover);
+}
+
+.control-button[data-variant="danger"] {
+  color: var(--color-danger);
+}

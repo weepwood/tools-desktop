@@ -1,0 +1,62 @@
+/*
+ * Three-panel frame. The left sidebar runs the full window height; the
+ * bottom panel spans everything right of it; the right panel sits above
+ * the bottom panel.
+ *
+ *   ┌──────┬──────────────┬─────────┐
+ *   │      │     main     │  right  │
+ *   │ left ├──────────────┴─────────┤
+ *   │      │         bottom         │
+ *   └──────┴────────────────────────┘
+ *
+ * Panels collapse by animating their grid track to 0.
+ */
+
+.app-shell {
+  position: relative; /* anchors the floating title bar */
+  height: 100%;
+  display: grid;
+  grid-template-columns: 0 minmax(0, 1fr) 0;
+  grid-template-rows: minmax(0, 1fr) 0;
+  background: var(--color-bg-base);
+  transition: grid-template-columns var(--transition-panel),
+    grid-template-rows var(--transition-panel);
+}
+
+.app-shell[data-left-open="true"] {
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) 0;
+}
+
+.app-shell[data-right-open="true"] {
+  grid-template-columns: 0 minmax(0, 1fr) var(--right-panel-width);
+}
+
+.app-shell[data-left-open="true"][data-right-open="true"] {
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--right-panel-width);
+}
+
+.app-shell[data-bottom-open="true"] {
+  grid-template-rows: minmax(0, 1fr) var(--bottom-panel-height);
+}
+
+/* While resizing (or snapping a peek into a real open), track changes
+   must be instant. */
+.app-shell[data-no-anim="true"] {
+  transition: none;
+}
+
+.app-shell-main {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding-top: var(--titlebar-height); /* room under the floating title bar */
+  background: var(--color-bg-surface);
+  border-left: 1px solid var(--color-border);
+}
+
+.app-shell[data-left-open="false"] .app-shell-main {
+  border-left-color: transparent;
+}
