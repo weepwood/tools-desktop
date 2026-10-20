@@ -165,9 +165,21 @@ class SplitService {
           const before=await fs.stat(input);
           if(before.size!==original.size||before.mtimeMs!==original.mtimeMs)
             throw Error('切分期间源文件发生变化，已拒绝确认结果');
-          for(let index=0;index<parts.length;index++){
-            if(signal?.aborted)throw Error('任务已停止。');
-            await fs.rename(path.join(attemptDir,parts[index].name),parts[index].path);
+          const finalized=[];
+          try{
+            for(let index=0;index<parts.length;index++){
+              if(signal?.aborted)throw Error('任务已停止。');
+              await fs.rename(path.join(attemptDir,parts[index].name),parts[index].path);
+              finalized.push(parts[index].path);
+            }
+          }catch(error){
+            // The output directory was exclusively created for this job.
+            // Roll back any names already moved into the final directory
+            // if the remaining moves fail or the user cancels during commit.
+            const removal=await Promise.allSettled(finalized.map(name=>fs.rm(name,{force:true})));
+            if(removal.some(item=>item.status==='rejected'))
+              throw Error('部分已完成分片清理失败，请检查输出目录。原错误：'+error.message);
+            throw error;
           }
           await fs.rmdir(attemptDir);
           record.parts=parts;record.status='completed';
