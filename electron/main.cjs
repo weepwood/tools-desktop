@@ -2,6 +2,7 @@
 const {app,BrowserWindow,ipcMain,dialog,Tray,Menu,nativeImage,Notification,protocol,shell}=require('electron');
 const fs=require('node:fs/promises');
 const path=require('node:path');
+const crypto=require('node:crypto');
 const {pathToFileURL}=require('node:url');
 const {scan,wash,restore}=require('./engine.cjs');
 const {History}=require('./history.cjs');
@@ -25,13 +26,21 @@ async function settings(){
   try {const parsed=JSON.parse(await fs.readFile(path.join(app.getPath('userData'),'settings.json'),'utf8'));return parsed.settings||null;}
   catch(e){if(e.code==='ENOENT')return null;throw e;}
 }
-async function saveSettings(value){
-  const file=path.join(app.getPath('userData'),'settings.json');
-  await fs.mkdir(path.dirname(file),{recursive:true});
-  const temporary=file+'.tmp';
-  const handle=await fs.open(temporary,'w');
-  try{await handle.writeFile(JSON.stringify({settings:value},null,2));await handle.sync();}finally{await handle.close();}
-  await fs.rename(temporary,file);
+let settingsWrite=Promise.resolve();
+function saveSettings(value){
+  // Serialize rapid UI toggles. A unique temporary file also prevents
+  // overlapping writes from corrupting settings.json on Windows.
+  settingsWrite=settingsWrite.catch(()=>{}).then(async()=>{
+    const file=path.join(app.getPath('userData'),'settings.json');
+    await fs.mkdir(path.dirname(file),{recursive:true});
+    const temporary=file+'.'+crypto.randomUUID()+'.tmp';
+    const handle=await fs.open(temporary,'wx');
+    try{await handle.writeFile(JSON.stringify({settings:value},null,2));await handle.sync();}
+    finally{await handle.close();}
+    try{await fs.rename(temporary,file);}
+    catch(error){await fs.rm(temporary,{force:true});throw error;}
+  });
+  return settingsWrite;
 }
 function createTray(){
   if(tray||!trayVisible)return;
@@ -53,25 +62,37 @@ async function quitSafely(){
   if(active){active.controller.abort();statusChanged();try{await active.promise;}catch{}}
   app.quit();
 }
+function devAddress(){
+  if(app.isPackaged||!process.env.XIMA_DEV_URL)return null;
+  const url=new URL(process.env.XIMA_DEV_URL);
+  if(url.protocol!=='http:'||url.hostname!=='127.0.0.1'||url.port!=='1420')
+    throw Error('开发服务器必须使用 http://127.0.0.1:1420');
+  return url.toString();
+}
 function createWindow(){
   const mac=process.platform==='darwin';
+  const development=devAddress();
+  const expected=development||pathToFileURL(path.join(__dirname,'..','dist','index.html')).toString();
   win=new BrowserWindow({width:1180,height:780,minWidth:820,minHeight:560,show:false,
     backgroundColor:'#15181e',frame:mac,titleBarStyle:mac?'hiddenInset':undefined,
     webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true}});
   win.on('close',event=>{if(!exiting&&trayVisible){event.preventDefault();win.hide();}});
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   win.webContents.on('will-navigate',(e,url)=>{
-    const expected=process.env.XIMA_DEV_URL||pathToFileURL(path.join(__dirname,'..','dist','index.html')).toString();
-    if(!url.startsWith(expected))e.preventDefault();
+    const allowed=development
+      ? new URL(url).origin===new URL(expected).origin
+      : url===expected||url.startsWith(expected+'#');
+    if(!allowed)e.preventDefault();
   });
-  if(process.env.XIMA_DEV_URL)win.loadURL(process.env.XIMA_DEV_URL);
+  if(development)win.loadURL(development);
   else win.loadFile(path.join(__dirname,'..','dist','index.html'));
   win.once('ready-to-show',()=>{if(!launchHidden)win.show();});
 }
 function wire(){
   ipcMain.on('xima:drag',(e,payload)=>{if(e.sender!==win?.webContents)return;const {type,paths}=payload||{};broadcast('drag-drop',{type,paths:Array.isArray(paths)?paths.filter(x=>typeof x==='string').slice(0,20):[]});});
   ipcMain.handle('xima:invoke',async(e,command,args={},requestId='')=>{
-    if(e.sender!==win?.webContents)throw Error('未经授权的窗口');
+    if(e.sender!==win?.webContents||e.senderFrame!==win?.webContents.mainFrame)
+      throw Error('未经授权的渲染进程');
     if(typeof command!=='string'||!args||typeof args!=='object')throw Error('参数无效');
     const send=payload=>{if(typeof requestId==='string'&&/^[\da-f-]{36}$/i.test(requestId))broadcast('request:'+requestId,payload);};
     switch(command){
