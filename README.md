@@ -23,15 +23,14 @@ npm run dev
 
 npm run build     # tsc --noEmit + vite build
 npm run dist:win  # NSIS 安装器 + Portable
-npm run dist:mac  # DMG + ZIP（需在 macOS 构建）
-npm run dist:linux # AppImage + deb（需在 Linux 构建）
+npm run dist:mac  # Apple 芯片版 DMG + ZIP（需在 macOS 构建）
 ```
 
-CI 为 Windows、macOS 和 Linux 分别构建安装包。Actions Artifacts 可下载对应平台产物；各平台本地打包通常也应在目标操作系统上运行。
+CI 为 Windows 构建 x64 安装版和便携版，为 macOS 构建 Apple 芯片（arm64）DMG 与 ZIP。各平台本地打包通常也应在目标操作系统上运行。
 
 ### 自动发布多平台版本
 
-更新 `package.json` 中的版本号并同步 `package-lock.json` 后，推送匹配的版本标签（例如 `v1.0.1`）。GitHub Actions 会构建 Windows、macOS 和 Linux 产物，并自动创建 GitHub Release 上传安装包。标签版本需与 `package.json` 中的版本一致。
+更新 `package.json` 中的版本号并同步 `package-lock.json` 后，推送匹配的版本标签（例如 `v1.0.1`）。GitHub Actions 会构建 Windows 和 macOS Apple 芯片版产物，并自动创建 GitHub Release 上传安装包。标签版本需与 `package.json` 中的版本一致。
 
 ## 功能
 

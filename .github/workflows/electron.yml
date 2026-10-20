@@ -96,27 +96,9 @@ jobs:
             release/*.zip
           if-no-files-found: error
 
-  linux-package:
-    runs-on: ubuntu-latest
-    needs: checks
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-      - run: npm ci --no-audit --no-fund
-      - run: npm run dist:linux
-      - uses: actions/upload-artifact@v4
-        with:
-          name: HALO-Linux
-          path: |
-            release/*.AppImage
-            release/*.deb
-          if-no-files-found: error
-
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows-installer, linux-package]
+    needs: [windows-installer]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -125,17 +107,13 @@ jobs:
         with:
           name: HALO-Windows
           path: release/windows
-      - uses: actions/download-artifact@v4
-        with:
-          name: HALO-Linux
-          path: release/linux
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mapfile -d '' assets < <(find release -type f -print0)
-          if [ "${#assets[@]}" -lt 4 ]; then
-            echo "Expected Windows and Linux release packages"
+          if [ "${#assets[@]}" -lt 2 ]; then
+            echo "Expected Windows release packages"
             exit 1
           fi
           gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
