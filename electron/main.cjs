@@ -7,6 +7,7 @@ const {pathToFileURL}=require('node:url');
 const {scan,wash,restore}=require('./engine.cjs');
 const {History}=require('./history.cjs');
 const {Video}=require('./video.cjs');
+const {validateCommand}=require('./ipc-validation.cjs');
 protocol.registerSchemesAsPrivileged([{scheme:'xima',privileges:{secure:true,standard:true,supportFetchAPI:true,stream:true}}]);
 app.setAppUserModelId('com.weepwood.xima.electron');
 const hasInstanceLock=app.requestSingleInstanceLock();
@@ -96,7 +97,7 @@ function wire(){
   ipcMain.handle('xima:invoke',async(e,command,args={},requestId='')=>{
     if(e.sender!==win?.webContents||e.senderFrame!==win?.webContents.mainFrame)
       throw Error('未经授权的渲染进程');
-    if(typeof command!=='string'||!args||typeof args!=='object')throw Error('参数无效');
+    validateCommand(command,args);
     const send=payload=>{if(typeof requestId==='string'&&/^[\da-f-]{36}$/i.test(requestId))broadcast('request:'+requestId,payload);};
     switch(command){
       case 'frontend_ready':if(!launchHidden)show();return;
