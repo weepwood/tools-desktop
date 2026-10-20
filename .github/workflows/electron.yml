@@ -26,6 +26,8 @@ jobs:
         with:
           node-version: '24'
       - run: npm ci --no-audit --no-fund
+      - name: Windows file safety and IPC regression tests
+        run: npm test
       - name: Verify FFmpeg binaries
         shell: pwsh
         run: |
