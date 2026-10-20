@@ -59,6 +59,10 @@ export function ImageIcon(props: IconProps) {
   return <svg {...base(props)}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>;
 }
 
+export function MonitorIcon(props: IconProps) {
+  return <svg {...base(props)}><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></svg>;
+}
+
 export function SearchIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
@@ -73,6 +77,18 @@ export function ClockIcon(props: IconProps) {
     <svg {...base(props)}>
       <circle cx="12" cy="12" r="8.5" />
       <polyline points="12 7.5 12 12 15 14" />
+    </svg>
+  );
+}
+
+/** History: a clock with its dial wound backwards. Distinct from ClockIcon so
+ *  the two sidebar entries stop sharing one glyph. */
+export function HistoryIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3.4 12a8.6 8.6 0 1 0 2.6-6.1L3 8.6" />
+      <polyline points="3.1 3.9 3.1 8.9 8.1 8.9" />
+      <polyline points="12 7.6 12 12.2 15.2 14" />
     </svg>
   );
 }
@@ -123,10 +139,11 @@ export function PersonIcon(props: IconProps) {
   );
 }
 
-export function SendIcon(props: IconProps) {
+export function MailIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <path d="M15 5.5 4.5 11l6 1.5L12 18.5 17.5 8" transform="rotate(8 12 12)" />
+      <rect x="3.5" y="5.5" width="17" height="13" rx="2.25" />
+      <path d="m4.5 7 7.5 5.5L19.5 7" />
     </svg>
   );
 }

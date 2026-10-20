@@ -1,0 +1,76 @@
+/* 邮件通知 pane: field widths, delivery status and the save bar. */
+
+.mail-field .control-text-input {
+  width: 240px;
+}
+
+.mail-field-narrow .control-text-input {
+  width: 88px;
+}
+
+.mail-field-wide .control-text-input {
+  width: 100%;
+  max-width: 360px;
+}
+
+/* A long recipient list needs the full row, so the control drops below its
+   label instead of squeezing into the right-hand column. */
+.settings-row[data-stacked] {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.settings-row[data-stacked] .settings-row-control {
+  width: 100%;
+}
+
+.settings-row[data-stacked] .mail-field-wide .control-text-input {
+  max-width: none;
+}
+
+/* Sits inside the card, under the last row. */
+.mail-warning {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  color: var(--halo-danger-text);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.mail-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.mail-dirty {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-sm);
+}
+
+.control-button[data-variant="primary"] {
+  border-color: transparent;
+  background: var(--halo-action-color);
+  color: #fff;
+}
+
+.control-button[data-variant="primary"]:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--halo-action-color) 88%, #fff);
+}
+
+.control-button[data-variant="primary"]:disabled {
+  border-color: var(--color-border);
+  background: var(--color-bg-inset);
+  color: var(--color-text-tertiary);
+  cursor: default;
+}
+
+.settings-feedback[data-tone="error"] {
+  color: var(--halo-danger-text);
+}
+
+.settings-feedback[data-tone="success"] {
+  color: var(--color-success);
+}

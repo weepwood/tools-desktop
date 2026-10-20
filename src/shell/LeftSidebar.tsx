@@ -1,14 +1,16 @@
-import { ClockIcon, ComposeIcon, GearIcon, ImageIcon, SplitIcon } from "../lib/icons";
+import { ClockIcon, ComposeIcon, GearIcon, HistoryIcon, ImageIcon, MonitorIcon, SplitIcon } from "../lib/icons";
 import { useNavigation } from "../lib/navigation";
+import type { WorkspaceTabId } from "../lib/workspace-tabs.mjs";
 import type { PeekPhase } from "./AppShell";
 import { SidebarMarker, useSidebarMarker } from "./SidebarMarker";
 import "./LeftSidebar.css";
 
-export type HaloSection = "wash" | "history" | "video" | "split" | "shutdown";
+export type HaloSection = WorkspaceTabId;
 
 interface LeftSidebarProps {
-  activeSection: HaloSection;
+  activeSection: HaloSection | null;
   onSelectSection: (section: HaloSection) => void;
+  screenCaptureAvailable: boolean;
   open: boolean;
   peek: PeekPhase;
   onPeekHold: () => void;
@@ -27,6 +29,7 @@ interface LeftSidebarProps {
 export function LeftSidebar({
   activeSection,
   onSelectSection,
+  screenCaptureAvailable,
   open,
   peek,
   onPeekHold,
@@ -57,6 +60,10 @@ export function LeftSidebar({
             <ImageIcon className="sidebar-item-icon" />
             <span className="sidebar-item-label">视频截图</span>
           </button>
+          {screenCaptureAvailable && <button className="sidebar-item" data-active={view === "shell" && activeSection === "screen"} onClick={() => onSelectSection("screen")}>
+            <MonitorIcon className="sidebar-item-icon" />
+            <span className="sidebar-item-label">屏幕截图</span>
+          </button>}
           <button className="sidebar-item" data-active={view === "shell" && activeSection === "split"} onClick={() => onSelectSection("split")}>
             <SplitIcon className="sidebar-item-icon" />
             <span className="sidebar-item-label">视频按大小切分</span>
@@ -66,7 +73,7 @@ export function LeftSidebar({
             <span className="sidebar-item-label">定时关机</span>
           </button>
           <button className="sidebar-item" data-active={view === "shell" && activeSection === "history"} onClick={() => onSelectSection("history")}>
-            <ClockIcon className="sidebar-item-icon" />
+            <HistoryIcon className="sidebar-item-icon" />
             <span className="sidebar-item-label">历史与恢复</span>
           </button>
           <button className="sidebar-item" data-active={view === "settings"} onClick={() => navigate("settings")}>

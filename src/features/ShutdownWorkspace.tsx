@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Button, Card } from "../components/ui";
+import { Button, Card, EmptyState } from "../components/ui";
+import { ClockIcon } from "../lib/icons";
 import { SegmentedControl } from "../settings/controls/SegmentedControl";
 import { confirm } from "../lib/dialog";
 import "./ShutdownWorkspace.css";
@@ -132,9 +133,13 @@ export function ShutdownWorkspace({ active }: { active: boolean }) {
       </header>
       <main className="shutdown-content">
         {!shutdown.canShutdown && !loading ? (
-          <Card title="当前平台暂不支持">
-            <p className="shutdown-muted">当前平台暂不支持关机计划。</p>
-          </Card>
+          <div className="shutdown-unsupported">
+            <EmptyState
+              icon={<ClockIcon aria-hidden="true" />}
+              title="当前平台暂不支持"
+              description="HALO 通过系统自带的计划任务安排关机；当前系统没有可用的接口，因此这项功能在此设备上不可用。"
+            />
+          </div>
         ) : shutdown.plan !== null ? (
           <Card title={`当前${shutdown.plan.action === "shutdown" ? "关机" : "开机/唤醒"}计划`}>
             <div className="shutdown-active">

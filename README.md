@@ -8,7 +8,7 @@ Electron 44 + React 19 + Vite 7，界面为手写 CSS（无 UI 框架）。
 HALO/
 ├─ src/            渲染进程：shell（标题栏/侧栏/面板）、features、design system
 ├─ electron/       主进程：文件引擎、历史、视频、切分、IPC 校验
-├─ assets/         图标：icon.svg（源文件）、icon.png、icon.ico、tray.png
+├─ assets/         图标：icon.svg、icon.png、icon.ico、icon.icns；含 macOS 彩色托盘图标
 ├─ tests/          node:test：引擎 / 切分 / 视频历史 / IPC 参数边界
 └─ docs/           HALO-design.md（工程分析与设计系统说明）
 ```
@@ -47,6 +47,7 @@ CI 为 Windows、macOS 和 Linux 分别构建安装包。Actions Artifacts 可�
 | 停止任务、确认与安全恢复 | AbortController、系统对话框、标记 / 大小 / 内容三重核验 |
 | 洗码 / 恢复历史、CSV | JSON 历史 + 同步 JSONL 日志 + CSV 导出 |
 | 视频定时截图 | ffprobe / ffmpeg、PNG 输出、实时进度、停止 |
+| 定时屏幕截图 | Windows/macOS 选择显示器、锁屏/睡眠暂停、按日期归档并导出 MP4 |
 | 截图画廊与放大预览 | 受限 `halo://image` 协议 |
 | 截图联系表 | 使用 FFmpeg 导出当前截图页的缩略总览图 |
 | 按大小切分视频 | `-c copy` 无损切分，严格校验每个分片不超阈值 |
@@ -54,6 +55,16 @@ CI 为 Windows、macOS 和 Linux 分别构建安装包。Actions Artifacts 可�
 | 任务中心 | 汇总运行进度与最近洗码、恢复、截图、切分记录 |
 | 跨平台电源计划 | Windows/macOS/Linux 定时关机；定时开机需平台和硬件支持 |
 | 托盘、通知、开机启动 | Electron 主进程 |
+| 邮件通知 | 自研 SMTP 客户端（EHLO / STARTTLS / AUTH / DATA），密码经系统密钥环加密 |
+
+## 邮件通知
+
+设置 → 邮件通知 中填写 SMTP 服务器（SSL/TLS 465、STARTTLS 587 或内网不加密）、账号与收件人，保存后可先发送测试邮件。
+开启「启用邮件通知」+「任务结束时发送」后，洗码、恢复、视频截图与切分任务结束时会自动发信；该开关独立于系统通知。
+
+- 协议实现位于 `electron/mailer.cjs`，无第三方邮件库依赖，渲染进程拿不到密码与套接字。
+- 配置保存在应用数据目录的 `mail.json`；密码经 Electron `safeStorage` 加密（macOS 钥匙串 / Windows DPAPI / Linux 密钥环），系统无密钥环时降级为仅当前用户可读的明文，设置页会明确提示。
+- 收件人最多 20 个；邮件正文为 UTF-8 base64，中文标题按 RFC 2047 编码，各邮件客户端均可正常显示。
 
 ## 设计系统
 

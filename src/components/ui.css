@@ -8,6 +8,8 @@
 
 /* ============================================================== 页面头部 */
 
+/* Header text sits on the gutter; cards below sit on the same gutter, and
+   everything inside a card steps in by exactly one --panel-pad. */
 .halo-page-header {
   position: sticky;
   top: 0;
@@ -19,7 +21,7 @@
   width: 100%;
   min-height: 78px;
   margin: 0;
-  padding: 16px 24px 14px;
+  padding: 16px var(--gutter) 14px;
   border-bottom: 0;
   background: var(--color-bg-canvas);
 }
@@ -62,14 +64,26 @@
     transform var(--dur-1) var(--ease-standard);
 }
 
+.halo-button > svg {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+}
+
 /* Press feedback: the button dips, it never changes size. */
 .halo-button:active:not(:disabled) {
   transform: translateY(1px) scale(0.99);
 }
 
+/* Disabled never uses opacity. Fading the whole button fades the label with
+   the fill, which measured 1.37:1 on the primary CTA — it read as a rendering
+   failure rather than a state. Each variant swaps to a muted palette instead:
+   the label stays legible, the surface stays flat, and "not available" is
+   carried by colour rather than by transparency. */
 .halo-button:disabled {
   cursor: not-allowed;
-  opacity: 0.45;
+  transform: none;
+  box-shadow: none;
 }
 
 .halo-button.primary {
@@ -114,6 +128,27 @@
   background: var(--color-danger-weak);
 }
 
+.halo-button.primary:disabled {
+  color: var(--color-text-secondary);
+  background: color-mix(in srgb, var(--halo-action-color) 12%, var(--color-bg-surface));
+}
+
+.halo-button.secondary:disabled {
+  color: var(--color-text-tertiary);
+  border-color: var(--color-border);
+  background: var(--color-bg-inset);
+}
+
+.halo-button.ghost:disabled {
+  color: var(--color-text-disabled);
+}
+
+.halo-button.danger:disabled {
+  color: var(--color-text-disabled);
+  border-color: var(--color-border);
+  background: var(--color-bg-inset);
+}
+
 .halo-button.compact {
   min-height: var(--control-height-sm);
   padding: 0 9px;
@@ -145,7 +180,7 @@
 .halo-card {
   position: relative;
   min-width: 0;
-  padding: 18px var(--space-5);
+  padding: var(--panel-pad);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
@@ -229,8 +264,10 @@
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   color: var(--color-text);
-  background: var(--color-bg-surface);
+  background-color: var(--color-bg-surface);
+  box-shadow: inset 0 1px 1px color-mix(in srgb, var(--color-text) 3%, transparent);
   outline: none;
+  font-size: var(--text-base);
   transition:
     border-color var(--dur-2) var(--ease-standard),
     background var(--dur-2) var(--ease-standard),
@@ -258,11 +295,17 @@
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
     linear-gradient(135deg, currentColor 50%, transparent 50%);
   background-position:
-    calc(100% - 15px) 14px,
-    calc(100% - 10px) 14px;
+    calc(100% - 15px) 50%,
+    calc(100% - 10px) 50%;
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
   cursor: pointer;
+}
+
+.halo-field select option,
+.screen-export-bar select option {
+  color: var(--color-text);
+  background: var(--color-bg-surface);
 }
 
 .halo-field input:hover:not(:disabled),
@@ -279,6 +322,18 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--halo-focus-color) 18%, transparent);
 }
 
+.halo-field input[aria-invalid="true"],
+.halo-field textarea[aria-invalid="true"],
+.halo-field select[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.halo-field input[aria-invalid="true"]:focus-visible,
+.halo-field textarea[aria-invalid="true"]:focus-visible,
+.halo-field select[aria-invalid="true"]:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-danger) 18%, transparent);
+}
+
 .halo-field input::placeholder,
 .halo-field textarea::placeholder {
   color: var(--color-text-tertiary);
@@ -287,7 +342,9 @@
 .halo-field input:disabled,
 .halo-field textarea:disabled,
 .halo-field select:disabled {
-  opacity: 0.55;
+  color: var(--color-text-disabled);
+  border-color: var(--color-border);
+  background: var(--color-bg-inset);
   cursor: not-allowed;
 }
 
@@ -322,8 +379,17 @@
 }
 
 .halo-switch-row[data-disabled] {
-  opacity: 0.5;
+  color: var(--color-text-disabled);
   cursor: default;
+}
+
+.halo-switch-row[data-disabled] .halo-switch-copy small {
+  color: var(--color-text-disabled);
+}
+
+.halo-switch-row[data-disabled] .halo-switch-track {
+  background: var(--color-bg-inset);
+  box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
 .halo-switch-copy {
@@ -345,9 +411,11 @@
 
 .halo-switch {
   position: relative;
+  display: grid;
+  align-items: center;
   flex: 0 0 30px;
   width: 30px;
-  height: 18px;
+  height: var(--hit-min); /* visual pill stays 18px, the target does not */
 }
 
 .halo-switch input {
@@ -396,19 +464,59 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--halo-focus-color) 30%, transparent);
 }
 
+/* A scrollable panel that has more below the fold fades its last 26px, so the
+   cut reads as "keep going" instead of "the line is broken". Set by
+   lib/useScrollFade.ts; stable when the content fits. */
+[data-scroll-fade="more"] {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 26px), transparent);
+}
+
 /* ============================================================== 提示条 */
 
+/* Toasts are fixed to the app window so their configured position stays
+   consistent even when a notice originates inside a scrolling settings pane. */
 .halo-notice-stack {
-  position: absolute;
-  top: 12px;
+  position: fixed;
   right: var(--space-5);
+  bottom: var(--space-4);
   z-index: var(--z-toast);
   display: grid;
+  justify-items: end;
   gap: var(--space-2);
-  width: min(480px, calc(100% - 40px));
+  width: min(460px, calc(100% - 40px));
   overflow: visible;
   isolation: isolate;
   pointer-events: none;
+}
+
+.halo-notice-stack[data-position="top-left"],
+.halo-notice-stack[data-position="top-right"] {
+  top: calc(var(--titlebar-height) + var(--space-4));
+  bottom: auto;
+}
+
+.halo-notice-stack[data-position="top-left"],
+.halo-notice-stack[data-position="bottom-left"] {
+  right: auto;
+  left: var(--space-5);
+  justify-items: start;
+}
+
+.halo-notice-stack[data-position="top-right"],
+.halo-notice-stack[data-position="bottom-right"] {
+  right: var(--space-5);
+  left: auto;
+  justify-items: end;
+}
+
+.halo-notice-stack[data-position="center"] {
+  top: calc(var(--titlebar-height) + var(--space-4));
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  justify-items: center;
+  transform: translateX(-50%);
 }
 
 .halo-notice {
@@ -663,7 +771,7 @@
 }
 
 .halo-preset:disabled {
-  opacity: 0.5;
+  color: var(--color-text-disabled);
   cursor: default;
 }
 
@@ -728,6 +836,7 @@
 
 .halo-search-field input {
   width: 100%;
+  height: 100%; /* the whole 36px field is the input's hit area */
   min-width: 0;
   padding: 0;
   border: 0;
@@ -830,11 +939,15 @@
 
 /* ============================================================ 空状态等 */
 
+/* One empty state, one look. The 46px dashed ring that used to live here was
+   a second visual language competing with the cards around it; a plain 40px
+   line icon at 1.5 stroke reads calmer and matches the sidebar icon weight. */
 .halo-empty-state {
   display: grid;
   justify-items: center;
+  align-content: center;
   gap: 10px;
-  padding: 44px var(--space-4);
+  padding: 48px var(--space-6);
   color: var(--color-text-secondary);
   text-align: center;
 }
@@ -842,27 +955,23 @@
 .halo-empty-icon {
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
-  margin-bottom: 2px;
-  border: 1px dashed var(--color-border-strong);
-  border-radius: 50%;
   color: var(--color-text-tertiary);
 }
 
 .halo-empty-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 40px;
+  height: 40px;
+  stroke-width: 1.5;
 }
 
 .halo-empty-state strong {
   color: var(--color-text);
   font-size: var(--text-md);
-  font-weight: var(--weight-emphasis);
+  font-weight: var(--weight-strong);
 }
 
 .halo-empty-state p {
-  max-width: 46ch;
+  max-width: 42ch;
   margin: 0;
   font-size: var(--text-sm);
   line-height: var(--leading-relaxed);
@@ -894,6 +1003,9 @@
 }
 
 .halo-link-button {
+  display: inline-flex; /* min-height keeps the text link a 24px-tall target */
+  align-items: center;
+  min-height: var(--hit-min);
   color: var(--halo-focus-color);
   font-size: var(--text-xs);
   cursor: pointer;
@@ -905,8 +1017,9 @@
 }
 
 .halo-link-button:disabled {
+  color: var(--color-text-disabled);
   cursor: not-allowed;
-  opacity: 0.45;
+  text-decoration: none;
 }
 
 .halo-sr-only {
@@ -940,49 +1053,6 @@
 
 .halo-action-footer .halo-button-row > .primary {
   flex: 1;
-}
-
-.halo-safety-note {
-  margin: 11px 0 0;
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-  line-height: var(--leading-normal);
-  text-wrap: pretty;
-}
-
-.halo-safety-note-critical {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  margin: 0 0 10px;
-  padding: 8px 10px;
-  border-left: 2px solid var(--color-warning);
-  border-radius: var(--radius-xs);
-  background: var(--color-warning-weak);
-  color: var(--halo-warning-text);
-  font-size: var(--text-sm);
-}
-
-.halo-safety-note-dismiss {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 22px;
-  width: 22px;
-  height: 22px;
-  margin: -2px -4px -2px auto;
-  border-radius: var(--radius-xs);
-  color: inherit;
-  opacity: 0.72;
-}
-
-.halo-safety-note-dismiss:hover {
-  background: color-mix(in srgb, currentColor 10%, transparent);
-  opacity: 1;
-}
-
-.halo-safety-note-dismiss svg {
-  width: 14px;
-  height: 14px;
 }
 
 /* ============================================================ 崩溃兜底 */

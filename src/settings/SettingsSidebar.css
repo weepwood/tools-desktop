@@ -38,6 +38,7 @@
 
 .settings-search input {
   width: 100%;
+  height: var(--hit-min); /* the whole 34px pill is clickable, not just the glyphs */
   border: none;
   outline: none;
   background: transparent;

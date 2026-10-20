@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import {
   SearchIcon,
   GearIcon,
   KeyboardIcon,
+  MailIcon,
   PluginIcon,
   TerminalIcon,
 } from "../lib/icons";
@@ -20,6 +21,7 @@ export interface SettingsCategory {
 
 export const SETTINGS_CATEGORIES: SettingsCategory[] = [
   { id: "general", label: "常规", icon: GearIcon, section: "应用" },
+  { id: "mail", label: "邮件通知", icon: MailIcon, section: "应用" },
   { id: "appearance", label: "外观", icon: PluginIcon, section: "应用" },
   { id: "shortcuts", label: "快捷键", icon: KeyboardIcon, section: "应用" },
   { id: "advanced", label: "高级", icon: TerminalIcon, section: "系统" },
@@ -27,6 +29,7 @@ export const SETTINGS_CATEGORIES: SettingsCategory[] = [
 
 interface SettingsSidebarProps {
   active: string;
+  visible: boolean;
   onSelect: (id: string) => void;
 }
 
@@ -35,13 +38,30 @@ interface SettingsSidebarProps {
  * Returning to the workspace is handled by the page header, so this column
  * starts directly with search.
  */
-export function SettingsSidebar({ active, onSelect }: SettingsSidebarProps) {
+export function SettingsSidebar({ active, visible, onSelect }: SettingsSidebarProps) {
   const [query, setQuery] = useState("");
+  const [animateMarker, setAnimateMarker] = useState(false);
+  const markerHasEntered = useRef(false);
 
   const sections = [...new Set(SETTINGS_CATEGORIES.map((c) => c.section))];
   const trimmed = query.trim();
   const results = trimmed ? searchSettings(query, SETTINGS_CATEGORIES) : [];
-  const marker = useSidebarMarker(active, !trimmed);
+  const marker = useSidebarMarker(active, visible && !trimmed);
+
+  useLayoutEffect(() => {
+    if (!visible) {
+      markerHasEntered.current = false;
+      setAnimateMarker(false);
+      return;
+    }
+    if (marker.top === null || markerHasEntered.current) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      markerHasEntered.current = true;
+      setAnimateMarker(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [visible, marker.top]);
 
   const openResult = (id: string) => {
     setQuery("");
@@ -95,7 +115,7 @@ export function SettingsSidebar({ active, onSelect }: SettingsSidebarProps) {
         </div>
       ) : (
         <nav className="settings-sidebar-nav" ref={marker.navRef}>
-          <SidebarMarker top={marker.top} />
+          <SidebarMarker top={marker.top} animate={animateMarker} />
           {sections.map((section) => (
             <div key={section}>
               <div className="sidebar-section-title">{section}</div>

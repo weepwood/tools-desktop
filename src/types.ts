@@ -70,6 +70,63 @@ export interface VideoFramePage {
   page: number
   pageSize: number
 }
+export interface ScreenCaptureDisplay {
+  id: string
+  name: string
+  width: number
+  height: number
+  primary: boolean
+}
+export interface ScreenCaptureRequest {
+  displayId: string
+  intervalSeconds: number
+  outputRoot: string
+}
+export type ScreenCaptureStatus = 'running' | 'completed' | 'cancelled' | 'failed' | 'interrupted'
+export interface ScreenCaptureSession {
+  schemaVersion: number
+  id: string
+  displayId: string
+  displayName: string
+  intervalSeconds: number
+  outputRoot: string
+  startedAt: string
+  finishedAt: string | null
+  lastCapturedAt?: string
+  status: ScreenCaptureStatus
+  framesWritten: number
+  error: string | null
+  historyError?: string
+}
+export interface ScreenCaptureEvent {
+  kind: 'started' | 'progress' | 'paused' | 'resumed' | 'completed' | 'cancelled' | 'failed'
+  sessionId?: string
+  framesWritten: number
+  progressPercent: number | null
+  elapsedMs?: number
+  message: string
+  outputRoot?: string
+}
+export interface ScreenCaptureDay {
+  date: string
+  frameCount: number
+  firstCapturedAt: string
+  lastCapturedAt: string
+}
+export interface ScreenCaptureFrame {
+  name: string
+  path: string
+  thumbnailPath: string
+  capturedAt: string
+  width: number
+  height: number
+}
+export interface ScreenCaptureFramePage {
+  frames: ScreenCaptureFrame[]
+  total: number
+  page: number
+  pageSize: number
+}
 export type VerificationMode = 'fast' | 'sampled' | 'full'
 export type FileStatus = 'success' | 'failed' | 'skipped'
 export type RestoreStatus = 'success' | 'failed' | 'skipped'

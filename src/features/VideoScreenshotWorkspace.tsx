@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { fileUrl as convertFileSrc } from "../lib/electron";
 import { open } from "../lib/dialog";
 import { cancelTask, exportContactSheet, extractVideoFrames, getVideoTaskFrames, listVideoTasks, openVideoOutput, probeVideo, videoOutputSuggestion, videoToolStatus } from "../api";
-import { CloseIcon, FolderIcon, ImageIcon } from "../lib/icons";
-import { NoticeToast } from "../components/NoticeToast";
+import { ChevronDownIcon, CloseIcon, FolderIcon, ImageIcon } from "../lib/icons";
+import { NoticeStack, NoticeToast } from "../components/NoticeToast";
+import { useScrollFade } from "../lib/useScrollFade";
+import { Button, EmptyState } from "../components/ui";
 import { usePersistedState } from "../lib/usePersistedState";
 import { taskLabel, useTaskStatus } from "../lib/taskStatus";
 import { isTauri, sendNotification } from "../lib/tauri";
+import { notifyTaskEndByMail } from "../lib/mail";
 import { useSettings } from "../lib/settingsStore";
 import type { VideoEvent, VideoFrame, VideoFramePage, VideoInfo, VideoTask, VideoTools } from "../types";
 import "./VideoScreenshotWorkspace.css";
@@ -26,6 +29,8 @@ export function VideoScreenshotWorkspace({ active }: { active: boolean }) {
   const taskStatus = useTaskStatus();
   const { settings } = useSettings();
   const settingsRef = useRef(settings);
+  const optionsRef = useRef<HTMLDivElement>(null);
+  useScrollFade(optionsRef);
   settingsRef.current = settings;
   const [interval, setInterval] = usePersistedState("halo:video-interval", "60");
   const [outputParent, setOutputParent] = usePersistedState("halo:video-output", "");
@@ -164,6 +169,7 @@ export function VideoScreenshotWorkspace({ active }: { active: boolean }) {
       await refreshHistory(result.id);
       setSelected(result); // Preserve the final result even when its record could not be updated.
       if (settingsRef.current.notifications) void sendNotification("HALO 视频截图", text).catch(() => {});
+      void notifyTaskEndByMail("HALO 视频截图", text);
     } catch (error) { setNotice({ type: "error", text: errorText(error) }); }
     finally { lock.current = false; setRunning(false); setStopping(false); }
   }
@@ -204,31 +210,31 @@ export function VideoScreenshotWorkspace({ active }: { active: boolean }) {
 
   return <div className="halo-workspace video-workspace" data-dragging={dragging}>
     <header className="halo-page-header"><div><h1>视频截图</h1><p>按时间间隔保存视频画面，全程在本机处理。</p></div><span className="halo-muted">PNG · 原始尺寸</span></header>
-    <div className="halo-notice-stack">
+    <NoticeStack>
       {!desktop && <div className="halo-notice info">当前为界面预览，视频选择、拖放和截图需在 HALO 桌面版中使用。</div>}
       {foreignTask && <div className="halo-notice info" role="status"><span>{taskLabel(taskStatus.kind)}正在运行，结束后可开始截图。</span><button className="halo-button secondary compact" disabled={cancelling} onClick={() => void stop()}>{cancelling ? "正在停止…" : "停止任务"}</button></div>}
       {notice && <NoticeToast type={notice.type} message={notice.text} onDismiss={() => setNotice(null)} />}
-    </div>
+    </NoticeStack>
     <div className="video-layout">
       <aside className="video-options" aria-label="截图设置">
-        <div className="video-options-body">
+        <div className="video-options-body" ref={optionsRef}>
           <button className="video-drop" disabled={!desktop || busy || !tools} onClick={() => void chooseVideo()}>
             <ImageIcon aria-hidden="true" /><strong>{probing ? "正在读取视频…" : dragging ? "松开以选择视频" : video ? "更换视频" : "拖入一个视频"}</strong><span>或点击选择视频文件</span>
           </button>
           {video && <div className="video-source"><strong title={displayPath(video.path)}>{video.name}</strong><span>{duration(video.durationSeconds)} · {video.width} × {video.height}</span><button className="halo-link-button" onClick={() => void copy(video.path)}>复制源路径</button></div>}
           <div className="halo-field"><label htmlFor="video-interval">截图间隔</label><div className="halo-presets" role="group" aria-label="常用截图间隔">{[10, 30, 60].map(value => <button key={value} className="halo-preset" aria-pressed={seconds === value} disabled={busy} onClick={() => setInterval(String(value))}>{value} 秒</button>)}</div><div className="halo-input-unit"><input id="video-interval" inputMode="numeric" type="number" min="1" max="86400" step="1" value={interval} disabled={busy} onChange={event => setInterval(event.target.value)} aria-invalid={!validInterval} aria-describedby="video-interval-hint" /><span>秒</span></div><small id="video-interval-hint">{validInterval ? "每隔一段时间保存一张图片。" : "请输入 1–86400 的整数秒。"}</small></div>
           <div className="halo-field"><label>保存位置</label><button className="video-folder" disabled={!desktop || busy} onClick={() => void chooseOutput()}><FolderIcon aria-hidden="true" /><span>{outputParent ? displayPath(outputParent) : "与视频放在同一位置"}</span><span>选择</span></button>{outputParent && <button className="halo-link-button" disabled={busy} onClick={() => setOutputParent("")}>恢复为视频所在位置</button>}<small className="video-path">{suggestion ? `输出目录：${displayPath(suggestion)}` : "选择视频后显示输出目录。"}</small><small>已存在同名目录时自动编号，保留原有图片。</small></div>
-          <details className="video-engine"><summary>{checking ? "正在检查截图工具…" : tools ? "截图工具已就绪" : "截图工具未就绪"}</summary>{tools && <><p>{tools.source}</p><p>{tools.ffmpegVersion}</p><p>{tools.ffprobeVersion}</p></>}{toolError && <p role="alert">{toolError}</p>}<button className="halo-button secondary compact" disabled={!desktop || busy} onClick={() => void checkTools()}>重新检查</button></details>
+          <details className="video-engine halo-disclosure"><summary><span>{checking ? "正在检查截图工具…" : tools ? "截图工具已就绪" : "截图工具未就绪"}</span><ChevronDownIcon aria-hidden="true" /></summary>{tools && <><p>{tools.source}</p><p>{tools.ffmpegVersion}</p><p>{tools.ffprobeVersion}</p></>}{toolError && <p role="alert">{toolError}</p>}<button className="halo-button secondary compact" disabled={!desktop || busy} onClick={() => void checkTools()}>重新检查</button></details>
           {toolError && <p className="video-error" role="alert">{toolError}</p>}
-          <details className="video-recent" open><summary>最近任务 <span>{tasks.length}</span></summary><button className="halo-link-button" disabled={!desktop || historyLoading || running} onClick={() => void refreshHistory()}>{historyLoading ? "读取中…" : "刷新记录"}</button>{historyError && <p className="video-error" role="alert">{historyError}</p>}{!tasks.length && !historyLoading && <p className="halo-muted">完成截图后可在这里重新查看。</p>}<div className="video-recent-list">{tasks.map(task => <button key={task.id} aria-pressed={selected?.id === task.id} disabled={running} onClick={() => { setSelected(task); setPage(0); setLive(null); }}><strong>{task.video.name}</strong><span>{localTime(task.startedAt)} · {STATUS_LABELS[task.status]} · {task.framesWritten} 张</span></button>)}</div></details>
+          <details className="video-recent halo-disclosure" open><summary><span>最近任务 <small>{tasks.length}</small></span><ChevronDownIcon aria-hidden="true" /></summary><button className="halo-link-button" disabled={!desktop || historyLoading || running} onClick={() => void refreshHistory()}>{historyLoading ? "读取中…" : "刷新记录"}</button>{historyError && <p className="video-error" role="alert">{historyError}</p>}{!tasks.length && !historyLoading && <p className="halo-muted">完成截图后可在这里重新查看。</p>}<div className="video-recent-list">{tasks.map(task => <button key={task.id} aria-pressed={selected?.id === task.id} disabled={running} onClick={() => { setSelected(task); setPage(0); setLive(null); }}><strong>{task.video.name}</strong><span>{localTime(task.startedAt)} · {STATUS_LABELS[task.status]} · {task.framesWritten} 张</span></button>)}</div></details>
         </div>
         <div className="halo-action-footer"><p className="halo-action-hint">{probing ? "正在检查视频内容，可随时停止" : running ? "可停止任务，已完成图片会保留" : estimated ? `预计约 ${estimated} 张，以实际生成数量为准` : video ? "图片数量未知" : "先选择视频，再开始截图"}</p><div className="halo-button-row"><button className="halo-button primary" disabled={!desktop || busy || !video || !validInterval || !tools || !suggestion} onClick={() => void start()}>开始截图</button>{(running || probing || checking) && <button className="halo-button danger" disabled={cancelling} onClick={() => void stop()}>{cancelling ? "正在停止…" : "停止"}</button>}</div><p className="halo-safety-note">读取视频并生成图片，不修改源视频。</p></div>
       </aside>
       <section className="video-results" aria-label="截图结果">
-        <div className="video-task"><div className="halo-card-heading"><h2 aria-live="polite">{taskTitle}</h2><span className="halo-muted">{percent !== null ? `${Math.floor(percent)}% · ` : ""}已生成 {count} 张 · {duration(elapsed / 1000)}</span></div>{(running || selected) && <><div className="halo-progress" data-indeterminate={percent === null && running} role="progressbar" aria-label="视频截图进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? undefined} aria-valuetext={percent === null ? "进度暂不可估算" : `${Math.floor(percent)}%`}><div style={{ width: percent === null ? running ? "30%" : "0%" : `${percent}%` }} /></div><p className="video-path">{output ? displayPath(output) : "正在准备输出目录…"}</p>{running && <small className="halo-muted">截图数量和进度为实时估算，任务结束后核对实际图片。</small>}</>}{!running && selected?.error && <p className="video-error">{selected.error}</p>}{!running && selected?.historyError && <p className="video-error">记录保存失败：{selected.historyError}</p>}{!running && selected?.log && <details className="video-log"><summary>查看处理日志</summary><pre>{selected.log}</pre></details>}</div>
+        <div className="video-task"><div className="halo-card-heading"><h2 aria-live="polite">{taskTitle}</h2><span className="halo-muted">{percent !== null ? `${Math.floor(percent)}% · ` : ""}已生成 {count} 张 · {duration(elapsed / 1000)}</span></div>{(running || selected) && <><div className="halo-progress" data-indeterminate={percent === null && running} role="progressbar" aria-label="视频截图进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent ?? undefined} aria-valuetext={percent === null ? "进度暂不可估算" : `${Math.floor(percent)}%`}><div style={{ width: percent === null ? running ? "30%" : "0%" : `${percent}%` }} /></div><p className="video-path">{output ? displayPath(output) : "正在准备输出目录…"}</p>{running && <small className="halo-muted">截图数量和进度为实时估算，任务结束后核对实际图片。</small>}</>}{!running && selected?.error && <p className="video-error">{selected.error}</p>}{!running && selected?.historyError && <p className="video-error">记录保存失败：{selected.historyError}</p>}{!running && selected?.log && <details className="video-log halo-disclosure"><summary><span>查看处理日志</span><ChevronDownIcon aria-hidden="true" /></summary><pre>{selected.log}</pre></details>}</div>
         <div className="video-gallery-head"><h2>截图预览</h2>{selected && !running && <div>{images?.frames.length ? <button className="halo-button secondary compact" disabled={busy || imagesLoading} onClick={() => void createContactSheet()}>导出本页联系表</button> : null}<button className="halo-button secondary compact" onClick={() => void copy(selected.outputDir)}>复制目录路径</button><button className="halo-button secondary compact" onClick={() => void openOutput()}>打开输出目录</button></div>}</div>
         <div className="video-gallery-scroll">
-          {imagesLoading ? <div className="video-empty" role="status"><p>正在读取图片和生成缩略图…</p></div> : imagesError ? <div className="video-empty" role="alert"><p>{imagesError}</p><button className="halo-button secondary" onClick={() => setImageRetry(value => value + 1)}>重试读取</button></div> : images?.frames.length ? <div className="video-grid">{images.frames.map(frame => <button className="video-frame" key={frame.path} onClick={() => setExpanded(frame)} aria-label={`放大查看第 ${frame.number} 张截图`}><img src={convertFileSrc(frame.thumbnailPath)} alt={`视频截图 ${frame.number}`} loading="lazy" decoding="async" /><span><strong>{String(frame.number).padStart(3, "0")}</strong>{frame.name}</span></button>)}</div> : <div className="video-empty"><ImageIcon aria-hidden="true" /><strong>{running ? "正在保存视频画面" : selected ? "暂无可查看的图片" : "把视频画面留在这里"}</strong><p>{running ? "完成或停止后，可浏览已经生成的截图。" : selected ? "图片可能未生成或已被移动，可打开输出目录检查。" : "拖入一个视频，默认每 60 秒保存一张原尺寸 PNG。"}</p></div>}
+          {imagesLoading ? <p className="video-gallery-note" role="status">正在读取图片和生成缩略图…</p> : imagesError ? <div role="alert"><EmptyState title="无法读取截图" description={imagesError} action={<Button variant="secondary" onClick={() => setImageRetry(value => value + 1)}>重试读取</Button>} /></div> : images?.frames.length ? <div className="video-grid">{images.frames.map(frame => <button className="video-frame" key={frame.path} onClick={() => setExpanded(frame)} aria-label={`放大查看第 ${frame.number} 张截图`}><img src={convertFileSrc(frame.thumbnailPath)} alt={`视频截图 ${frame.number}`} loading="lazy" decoding="async" /><span><strong>{String(frame.number).padStart(3, "0")}</strong>{frame.name}</span></button>)}</div> : <EmptyState icon={<ImageIcon aria-hidden="true" />} title={running ? "正在保存视频画面" : selected ? "暂无可查看的图片" : "把视频画面留在这里"} description={running ? "完成或停止后，可浏览已经生成的截图。" : selected ? "图片可能未生成或已被移动，可打开输出目录检查。" : "拖入一个视频，默认每 60 秒保存一张原尺寸 PNG。"} />}
         </div>
         {images && images.total > 0 && <nav className="halo-pagination" aria-label="截图分页"><span>{images.total} 张 · {images.page + 1} / {pages} 页</span><div><button className="halo-button secondary compact" disabled={imagesLoading || page === 0} onClick={() => setPage(value => value - 1)}>上一页</button><button className="halo-button secondary compact" disabled={imagesLoading || page + 1 >= pages} onClick={() => setPage(value => value + 1)}>下一页</button></div></nav>}
       </section>

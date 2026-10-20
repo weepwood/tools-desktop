@@ -16,6 +16,8 @@ export interface Combo {
   key: string;
   /** Cmd on macOS, Ctrl on Windows/Linux. */
   primary?: boolean;
+  /** Control on macOS, where primary maps to Command. */
+  control?: boolean;
   alt?: boolean;
   shift?: boolean;
 }
@@ -25,6 +27,8 @@ export interface ShortcutAction {
   label: string;
   description: string;
   defaultCombo: Combo | null;
+  /** Optional macOS-specific default for system-reserved or conventional keys. */
+  macDefaultCombo?: Combo | null;
 }
 
 export const SHORTCUT_ACTIONS: ShortcutAction[] = [
@@ -39,6 +43,32 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
     label: "左侧导航",
     description: "显示或隐藏左侧导航栏",
     defaultCombo: { key: "b", primary: true },
+  },
+  {
+    id: "new-tab",
+    label: "打开功能标签",
+    description: "打开功能选择器以新建或切换到标签",
+    defaultCombo: { key: "t", primary: true },
+  },
+  {
+    id: "close-tab",
+    label: "关闭当前标签",
+    description: "关闭当前功能标签页",
+    defaultCombo: { key: "w", primary: true },
+  },
+  {
+    id: "next-tab",
+    label: "下一个标签",
+    description: "切换到下一个功能标签",
+    defaultCombo: { key: "tab", primary: true },
+    macDefaultCombo: { key: "tab", control: true },
+  },
+  {
+    id: "prev-tab",
+    label: "上一个标签",
+    description: "切换到上一个功能标签",
+    defaultCombo: { key: "tab", primary: true, shift: true },
+    macDefaultCombo: { key: "tab", control: true, shift: true },
   },
 ];
 
@@ -70,7 +100,9 @@ function saveOverrides(next: Overrides) {
 
 export function getBinding(id: string): Combo | null {
   if (id in overrides) return overrides[id];
-  return SHORTCUT_ACTIONS.find((a) => a.id === id)?.defaultCombo ?? null;
+  const action = SHORTCUT_ACTIONS.find((a) => a.id === id);
+  if (isMacOS() && action?.macDefaultCombo !== undefined) return action.macDefaultCombo;
+  return action?.defaultCombo ?? null;
 }
 
 /* ---- Matching ---- */
@@ -108,10 +140,13 @@ export function keyFromEvent(e: KeyboardEvent): string {
 }
 
 export function matchesCombo(e: KeyboardEvent, combo: Combo): boolean {
-  const primaryDown = isMacOS() ? e.metaKey : e.ctrlKey;
+  const mac = isMacOS();
+  const primaryDown = mac ? e.metaKey : e.ctrlKey;
+  const controlDown = mac ? e.ctrlKey : false;
   return (
     keyFromEvent(e) === combo.key &&
     primaryDown === !!combo.primary &&
+    controlDown === !!combo.control &&
     e.altKey === !!combo.alt &&
     e.shiftKey === !!combo.shift
   );
@@ -125,9 +160,11 @@ export function isModifierOnly(e: KeyboardEvent): boolean {
 
 /** Build a Combo from a recorded keydown. */
 export function comboFromEvent(e: KeyboardEvent): Combo {
+  const mac = isMacOS();
   return {
     key: keyFromEvent(e),
-    primary: isMacOS() ? e.metaKey : e.ctrlKey,
+    primary: mac ? e.metaKey : e.ctrlKey,
+    control: mac ? e.ctrlKey : false,
     alt: e.altKey,
     shift: e.shiftKey,
   };
@@ -158,6 +195,7 @@ export function formatCombo(combo: Combo): string {
     let out = "";
     if (combo.alt) out += "⌥";
     if (combo.shift) out += "⇧";
+    if (combo.control) out += "⌃";
     if (combo.primary) out += "⌘";
     return out + displayKey(combo.key);
   }

@@ -4,59 +4,61 @@ import { useShortcutHandlers } from "../lib/shortcuts";
 import { TitleBar } from "./TitleBar";
 import { LeftSidebar } from "./LeftSidebar";
 import type { HaloSection } from "./LeftSidebar";
-import { RightSidebar } from "./RightSidebar";
-import { BottomPanel } from "./BottomPanel";
+import type { WorkspaceTabState } from "../lib/workspace-tabs.mjs";
 import { MainContent } from "./MainContent";
-import { useTabs } from "./useTabs";
 import { useNavigation } from "../lib/navigation";
 import { useSettings } from "../lib/settingsStore";
 import "./AppShell.css";
 
 export interface PanelState {
   left: boolean;
-  right: boolean;
-  bottom: boolean;
-}
-
-export interface PanelSizes {
-  right: number;
-  bottom: number;
 }
 
 /** Peek = preview of the closed left sidebar while hovering its toggle. */
 export type PeekPhase = "closed" | "open" | "closing";
 
-const DEFAULT_PANELS: PanelState = { left: true, right: false, bottom: false };
+const DEFAULT_PANELS: PanelState = { left: true };
 const SIDEBAR_WIDTH = 220;
-const DEFAULT_SIZES: PanelSizes = { right: 380, bottom: 230 };
-
-export const PANEL_LIMITS = {
-  right: { min: 280, max: 560 },
-  bottom: { min: 120, max: 480 },
-} as const;
 
 const PEEK_OPEN_DELAY = 200;
 const PEEK_CLOSE_DELAY = 250;
 
 /**
- * The three-panel frame: left sidebar (full height), main content,
- * right side panel, bottom panel. Layout is a CSS grid whose tracks
- * collapse to 0 when a panel closes (see AppShell.css) — no JS
- * measurement anywhere. The title bar floats above the grid so its
- * buttons never move. Panels are resizable by their inner edge and
- * auto-stow when dragged past their minimum. Right and bottom panel sizes
- * persist across launches; the left navigation has a fixed width.
+ * The window frame: left navigation (full height) plus the main content.
+ *
+ * HALO has a persistent navigation rail and a browser-style strip for its
+ * tool workspaces. Settings remains a separate view.
+ *
+ * The layout is a CSS grid whose sidebar track collapses to 0 when closed
+ * (see AppShell.css) — no JS measurement anywhere. The title bar floats above
+ * the grid so its buttons never move.
  */
 interface AppShellProps {
   children: ReactNode;
-  activeSection: HaloSection;
+  activeSection: HaloSection | null;
   onSelectSection: (section: HaloSection) => void;
+  tabs: WorkspaceTabState;
+  screenCaptureAvailable: boolean;
+  tabPickerOpen: boolean;
+  onSelectTab: (tab: HaloSection) => void;
+  onCloseTab: (tab: HaloSection) => void;
+  onMoveTab: (fromIndex: number, toIndex: number) => void;
+  onTabPickerOpenChange: (open: boolean) => void;
 }
 
-export function AppShell({ children, activeSection, onSelectSection }: AppShellProps) {
+export function AppShell({
+  children,
+  activeSection,
+  onSelectSection,
+  tabs,
+  screenCaptureAvailable,
+  tabPickerOpen,
+  onSelectTab,
+  onCloseTab,
+  onMoveTab,
+  onTabPickerOpenChange,
+}: AppShellProps) {
   const [panels, setPanels] = usePersistedState<PanelState>("app:panels", DEFAULT_PANELS);
-  const [sizes, setSizes] = usePersistedState<PanelSizes>("app:panel-sizes", DEFAULT_SIZES);
-  const [resizing, setResizing] = useState<keyof PanelState | null>(null);
   const [noAnim, setNoAnim] = useState(false);
   const [peek, setPeek] = useState<PeekPhase>("closed");
   const peekOpenTimer = useRef<number>(undefined);
@@ -64,7 +66,6 @@ export function AppShell({ children, activeSection, onSelectSection }: AppShellP
   const { navigate, view } = useNavigation();
   const { settings } = useSettings();
   const ui = settings.ui;
-  const tabsApi = useTabs();
 
   const cancelPeekTimers = () => {
     window.clearTimeout(peekOpenTimer.current);
@@ -105,52 +106,39 @@ export function AppShell({ children, activeSection, onSelectSection }: AppShellP
     setPanels((p) => ({ ...p, [panel]: !p[panel] }));
   };
 
-  const setSize = (panel: keyof PanelSizes) => (value: number) =>
-    setSizes((s) => ({ ...s, [panel]: value }));
-
-  const setOpen = (panel: keyof PanelState, open: boolean) =>
-    setPanels((p) => ({ ...p, [panel]: open }));
-
-  const setDragging = (panel: keyof PanelState) => (dragging: boolean) =>
-    setResizing(dragging ? panel : null);
-
-  // Only install a part's shortcuts when that part is enabled, so a
-  // hidden panel/tab strip can't be toggled or cycled from the keyboard.
   useShortcutHandlers(
     useMemo(() => {
-      if (view !== "shell") return {};
       const handlers: Record<string, () => void> = {
-        "open-settings": () => navigate("settings"),
+        "new-tab": () => onTabPickerOpenChange(true),
+        "close-tab": () => {
+          if (tabs.activeTab) onCloseTab(tabs.activeTab);
+        },
+        "next-tab": () => {
+          if (!tabs.openTabs.length) return;
+          const current = tabs.activeTab ? tabs.openTabs.indexOf(tabs.activeTab) : -1;
+          onSelectTab(tabs.openTabs[current < 0 ? 0 : (current + 1) % tabs.openTabs.length]);
+        },
+        "prev-tab": () => {
+          if (!tabs.openTabs.length) return;
+          const current = tabs.activeTab ? tabs.openTabs.indexOf(tabs.activeTab) : -1;
+          onSelectTab(tabs.openTabs[current < 0
+            ? tabs.openTabs.length - 1
+            : (current - 1 + tabs.openTabs.length) % tabs.openTabs.length]);
+        },
       };
+      if (view === "shell") handlers["open-settings"] = () => navigate("settings");
       if (ui.leftSidebar) handlers["toggle-left"] = () => toggle("left");
-      if (ui.rightSidebar) handlers["toggle-right"] = () => toggle("right");
-      if (ui.bottomPanel) handlers["toggle-bottom"] = () => toggle("bottom");
-      if (ui.tabs) {
-        handlers["new-tab"] = tabsApi.addTab;
-        handlers["close-tab"] = () =>
-          tabsApi.activeTab && tabsApi.closeTab(tabsApi.activeTab.id);
-        handlers["next-tab"] = () => tabsApi.cycle(1);
-        handlers["prev-tab"] = () => tabsApi.cycle(-1);
-      }
       return handlers;
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [navigate, view, peek, tabsApi, ui]),
+    }, [navigate, view, peek, ui, tabs, onCloseTab, onSelectTab, onTabPickerOpenChange]),
   );
 
   return (
     <div
       className="app-shell"
       data-left-open={panels.left && ui.leftSidebar}
-      data-right-open={panels.right && ui.rightSidebar}
-      data-bottom-open={panels.bottom && ui.bottomPanel}
-      data-no-anim={resizing !== null || noAnim}
-      style={
-        {
-          "--sidebar-width": `${SIDEBAR_WIDTH}px`,
-          "--right-panel-width": `${sizes.right}px`,
-          "--bottom-panel-height": `${sizes.bottom}px`,
-        } as CSSProperties
-      }
+      data-no-anim={noAnim}
+      style={{ "--sidebar-width": `${SIDEBAR_WIDTH}px` } as CSSProperties}
     >
       <TitleBar
         panels={panels}
@@ -158,17 +146,20 @@ export function AppShell({ children, activeSection, onSelectSection }: AppShellP
         onToggle={toggle}
         onLeftPeekStart={peekStart}
         onLeftPeekEnd={peekEnd}
-        tabs={tabsApi.tabs}
-        activeTabId={tabsApi.activeTab?.id ?? null}
-        onSelectTab={tabsApi.selectTab}
-        onCloseTab={tabsApi.closeTab}
-        onNewTab={tabsApi.addTab}
+        tabs={tabs}
+        screenCaptureAvailable={screenCaptureAvailable}
+        tabPickerOpen={tabPickerOpen}
+        onSelectTab={onSelectTab}
+        onCloseTab={onCloseTab}
+        onMoveTab={onMoveTab}
+        onTabPickerOpenChange={onTabPickerOpenChange}
       />
 
       {ui.leftSidebar && (
         <LeftSidebar
           activeSection={activeSection}
           onSelectSection={onSelectSection}
+          screenCaptureAvailable={screenCaptureAvailable}
           open={panels.left}
           peek={peek}
           onPeekHold={peekHold}
@@ -178,35 +169,8 @@ export function AppShell({ children, activeSection, onSelectSection }: AppShellP
       )}
 
       <div className="app-shell-main">
-        <MainContent
-          children={children}
-        />
+        <MainContent children={children} />
       </div>
-
-      {ui.rightSidebar && (
-        <RightSidebar
-          open={panels.right}
-          size={sizes.right}
-          dragging={resizing === "right"}
-          onSize={setSize("right")}
-          onStow={() => setOpen("right", false)}
-          onUnstow={() => setOpen("right", true)}
-          onDragging={setDragging("right")}
-        />
-      )}
-      {ui.bottomPanel && (
-        <BottomPanel
-          open={panels.bottom}
-          onClose={() => toggle("bottom")}
-          onOpenHistory={() => onSelectSection("history")}
-          size={sizes.bottom}
-          dragging={resizing === "bottom"}
-          onSize={setSize("bottom")}
-          onStow={() => setOpen("bottom", false)}
-          onUnstow={() => setOpen("bottom", true)}
-          onDragging={setDragging("bottom")}
-        />
-      )}
     </div>
   );
 }

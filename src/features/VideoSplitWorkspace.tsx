@@ -3,10 +3,13 @@ import { cancelTask, listSplitTasks, mergeSplitTask, openSplitOutput, probeVideo
 import { open } from "../lib/dialog";
 import { usePersistedState } from "../lib/usePersistedState";
 import { isTauri, sendNotification } from "../lib/tauri";
+import { notifyTaskEndByMail } from "../lib/mail";
 import { useTaskStatus, taskLabel } from "../lib/taskStatus";
 import { useSettings } from "../lib/settingsStore";
-import { FolderIcon, SplitIcon } from "../lib/icons";
-import { NoticeToast } from "../components/NoticeToast";
+import { ChevronDownIcon, FolderIcon, SplitIcon } from "../lib/icons";
+import { NoticeStack, NoticeToast } from "../components/NoticeToast";
+import { useScrollFade } from "../lib/useScrollFade";
+import { EmptyState } from "../components/ui";
 import type { VideoInfo, VideoSplitRecord, VideoSplitEvent } from "../types";
 import "./HaloWorkspace.css";
 import "./VideoScreenshotWorkspace.css";
@@ -26,6 +29,8 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
   const desktop = isTauri();
   const taskStatus = useTaskStatus();
   const { settings } = useSettings();
+  const optionsRef = useRef<HTMLDivElement>(null);
+  useScrollFade(optionsRef);
   const [maxSizeText, setMaxSizeText] = usePersistedState("halo:split-max-gb", "4.5");
   const [outputParent, setOutputParent] = usePersistedState("halo:split-output", "");
   const [video, setVideo] = useState<VideoInfo | null>(null);
@@ -119,6 +124,7 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
         : result.error ?? "任务已停止。";
       setNotice({type:result.status==="completed"?"success":result.status==="failed"?"error":"info",text:message});
       if(settings.notifications)void sendNotification("HALO 视频切分",message).catch(()=>{});
+      void notifyTaskEndByMail("HALO 视频切分",message);
     } catch(error) {setNotice({type:"error",text:errorMessage(error)});}
     finally {setRunning(false);setStopping(false);lock.current=false;}
   }
@@ -149,16 +155,16 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
         <p>把超出指定容量的视频分成多个可独立播放的文件，默认每个不超过 4.5 GB。</p></div>
       <span className="halo-muted">FFmpeg · 无损封装切分</span>
     </header>
-    <div className="halo-notice-stack">
+    <NoticeStack>
       {!desktop && <div className="halo-notice info">请在 Electron 桌面版中选择视频并执行切分。</div>}
       {foreignTask && <div className="halo-notice info" role="status">
         <span>{taskLabel(taskStatus.kind)}正在运行，完成后才能切分视频。</span>
       </div>}
       {notice && <NoticeToast type={notice.type} message={notice.text} onDismiss={() => setNotice(null)} />}
-    </div>
+    </NoticeStack>
     <div className="video-layout">
       <aside className="video-options" aria-label="切分设置">
-        <div className="video-options-body">
+        <div className="video-options-body" ref={optionsRef}>
           <button className="video-drop" disabled={!desktop||busy} onClick={()=>void chooseVideo()}>
             <SplitIcon aria-hidden="true"/><strong>{probing?"正在读取视频…":dragging?"松开以载入视频":video?"更换视频":"拖入一个视频"}</strong>
             <span>或点击选择本地文件</span>
@@ -192,7 +198,7 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
               onClick={()=>setOutputParent("")}>恢复默认位置</button>}
             <small>以“视频名_分片”创建新文件夹，避免覆盖现有文件。</small>
           </div>
-          <details className="video-engine"><summary>切分方式与兼容性</summary>
+          <details className="video-engine halo-disclosure"><summary><span>切分方式与兼容性</span><ChevronDownIcon aria-hidden="true" /></summary>
             <p>优先通过视频关键帧直接切分，不重新编码、不改变原视频。</p>
             <p>分片太大时自动缩短时长重试，最多尝试 9 次。若关键帧间隔过长，可能无法满足严格大小上限，届时会报错而不是生成超限的成品。</p>
             <p>MP4、MKV、MOV、WebM 尽量保留原封装；其他格式通常输出为 MKV。部分编码或字幕流可能无法直接复制。</p>
@@ -241,11 +247,10 @@ export function VideoSplitWorkspace({ active }: { active: boolean }) {
                 <span title={part.path}>{part.path}</span></div>
               <span className="split-file-size">{prettyBytes(part.sizeBytes)}</span>
             </div>)}</div>
-            : <div className="video-empty"><SplitIcon aria-hidden="true"/>
-              <strong>{selected?.status==="skipped"?"此视频无需切分":"等待生成分片"}</strong>
-              <p>{selected?.status==="failed"?"任务失败，请检查错误信息与磁盘空间。"
-                :"文件超过所选大小才开始切分；完成后可在这里核对每个分片的真实大小。"}</p>
-            </div>}
+            : <EmptyState icon={<SplitIcon aria-hidden="true"/>}
+              title={selected?.status==="skipped"?"此视频无需切分":"等待生成分片"}
+              description={selected?.status==="failed"?"任务失败，请检查错误信息与磁盘空间。"
+                :"文件超过所选大小才开始切分；完成后可在这里核对每个分片的真实大小。"} />}
         </div>
         <div className="split-history" data-empty={!recent.length && !loadingHistory}><div className="video-gallery-head"><h2>最近切分任务</h2>
           <button className="halo-button secondary compact" disabled={!desktop||loadingHistory||running}

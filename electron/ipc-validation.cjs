@@ -6,6 +6,11 @@ const uuid=x=>typeof x==='string'&&/^[a-f0-9-]{36}$/i.test(x);
 const absolute=x=>typeof x==='string'&&x.length>0&&x.length<=32768&&
   (path.isAbsolute(x)||path.win32.isAbsolute(x));
 const flag=x=>typeof x==='boolean';
+const calendarDate=x=>{
+  if(typeof x!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(x))return false;
+  const [year,month,day]=x.split('-').map(Number),date=new Date(year,month-1,day);
+  return date.getFullYear()===year&&date.getMonth()===month-1&&date.getDate()===day;
+};
 function scan(r){
   check(object(r)&&absolute(r.rootPath),'扫描目录');
   check(flag(r.recursive)&&flag(r.skipHidden)&&flag(r.skipSmall),'扫描选项');
@@ -25,7 +30,8 @@ function wash(r){
 const emptyCommands=new Set(['window_minimize','window_toggle_maximize','window_close',
   'is_autostart_enabled','task_running','task_status','cancel_task',
   'list_history','clear_history','storage_diagnostics','video_tool_status','list_video_tasks','list_split_tasks',
-  'get_shutdown_schedule','cancel_shutdown']);
+  'get_shutdown_schedule','cancel_shutdown','mail_config_get','mail_test',
+  'screen_capture_supported','screen_capture_displays','screen_capture_last_session']);
 function validateCommand(command,args={}){
   check(typeof command==='string'&&command.length<=80,'命令');
   check(object(args),'参数对象');
@@ -49,6 +55,28 @@ function validateCommand(command,args={}){
     case 'settings_set':
       check(object(args.settings)&&flag(args.settings.showInMenuBar)&&
         object(args.settings.ui),'设置');return;
+    case 'mail_config_set':{
+      const patch=args.patch;
+      check(object(patch),'邮件配置');
+      const optionalText=(value,max)=>value===undefined||(typeof value==='string'&&value.length<=max);
+      check(optionalText(patch.host,255)&&optionalText(patch.username,320)&&
+        optionalText(patch.from,320)&&optionalText(patch.fromName,100)&&
+        optionalText(patch.password,1024),'邮件配置字段');
+      check(patch.port===undefined||(Number.isSafeInteger(patch.port)&&
+        patch.port>=1&&patch.port<=65535),'邮件端口');
+      check(patch.security===undefined||['tls','starttls','none'].includes(patch.security),'邮件加密方式');
+      check(patch.to===undefined||
+        (typeof patch.to==='string'&&patch.to.length<=2000)||
+        (Array.isArray(patch.to)&&patch.to.length<=20&&
+          patch.to.every(value=>typeof value==='string'&&value.length<=320)),'收件人');
+      check(patch.enabled===undefined||flag(patch.enabled),'邮件开关');
+      check(patch.notifyOnTaskEnd===undefined||flag(patch.notifyOnTaskEnd),'任务邮件开关');
+      check(patch.clearPassword===undefined||flag(patch.clearPassword),'清除密码');
+      return;
+    }
+    case 'mail_notify':
+      check(typeof args.title==='string'&&args.title.length<=200&&
+        typeof args.body==='string'&&args.body.length<=4000,'邮件通知内容');return;
     case 'dialog_open':
     case 'dialog_save':{
       const opts=args.options??{};
@@ -96,6 +124,23 @@ function validateCommand(command,args={}){
       check(uuid(args.taskId)&&Number.isSafeInteger(args.page)&&args.page>=0&&
         Number.isSafeInteger(args.pageSize)&&args.pageSize>=1&&args.pageSize<=24,'联系表导出');return;
     case 'open_video_output':check(uuid(args.taskId),'截图任务编号');return;
+    case 'screen_capture':{
+      const r=args.request;
+      check(object(r)&&typeof r.displayId==='string'&&r.displayId.length>0&&r.displayId.length<=256&&
+        Number.isSafeInteger(r.intervalSeconds)&&r.intervalSeconds>=1&&r.intervalSeconds<=86400&&
+        absolute(r.outputRoot),'屏幕截图请求');return;
+    }
+    case 'list_screen_capture_days':
+      check(absolute(args.outputRoot),'截图保存目录');return;
+    case 'get_screen_capture_frames':
+      check(absolute(args.outputRoot)&&calendarDate(args.date)&&
+        Number.isSafeInteger(args.page)&&args.page>=0&&Number.isSafeInteger(args.pageSize)&&
+        args.pageSize>=1&&args.pageSize<=24,'日期图库');return;
+    case 'export_screen_capture_day':
+      check(absolute(args.outputRoot)&&calendarDate(args.date)&&
+        [1,2,5,10,15,24,30].includes(args.fps),'视频导出');return;
+    case 'open_screen_capture_day':
+      check(absolute(args.outputRoot)&&calendarDate(args.date),'日期目录');return;
     case 'open_split_output':check(uuid(args.taskId),'分片任务编号');return;
     case 'merge_split_task':check(uuid(args.taskId),'分片任务编号');return;
     case 'split_video':{

@@ -23,11 +23,12 @@ export function useSidebarMarker(activeKey: string, enabled = true) {
   return { navRef, top };
 }
 
-export function SidebarMarker({ top }: { top: number | null }) {
+export function SidebarMarker({ top, animate = true }: { top: number | null; animate?: boolean }) {
   return (
     <span
       className="sidebar-selection-marker"
       data-visible={top !== null}
+      data-animate={animate}
       aria-hidden="true"
       style={{ top: top ?? 0 }}
     />

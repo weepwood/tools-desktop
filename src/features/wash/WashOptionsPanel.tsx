@@ -1,6 +1,7 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { useScrollFade } from "../../lib/useScrollFade";
 import { Button, Field, SectionLabel, SwitchRow } from "../../components/ui";
-import { ChevronDownIcon, CloseIcon, ProjectIcon } from "../../lib/icons";
+import { ChevronDownIcon, ProjectIcon } from "../../lib/icons";
 import { formatBytes } from "../../lib/format";
 import { EXTENSION_PRESETS } from "./presets";
 import type { WashController } from "./useWashController";
@@ -16,10 +17,18 @@ type WashProfile = { name: string; rootPath: string; extensions: string; recursi
 export function WashOptionsPanel({ ctrl }: { ctrl: WashController }) {
   const busy = ctrl.busy;
   const ids = useId();
-  const [safetyNoteDismissed, setSafetyNoteDismissed] = useState(false);
   const [profiles, setProfiles] = usePersistedState<WashProfile[]>("halo:wash-profiles", []);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useScrollFade(scrollRef);
   const [profileName, setProfileName] = useState("");
   const [selectedProfile, setSelectedProfile] = useState("");
+  useEffect(() => {
+    if (!ctrl.backupDirectory && !ctrl.notice) {
+      ctrl.showNotice("info", "洗码会直接修改原文件；重要文件建议先启用处理前备份。");
+    }
+    // Show this reminder once whenever the wash workspace opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   function saveProfile() {
     const name = profileName.trim();
     if (!name) return;
@@ -42,7 +51,7 @@ export function WashOptionsPanel({ ctrl }: { ctrl: WashController }) {
 
   return (
     <aside className="halo-options" aria-label="处理设置">
-      <div className="halo-options-body">
+      <div className="halo-options-body" ref={scrollRef}>
         <header className="halo-options-head">
           <h2>处理设置</h2>
           <span className="halo-options-tag">
@@ -81,7 +90,7 @@ export function WashOptionsPanel({ ctrl }: { ctrl: WashController }) {
           <section className="halo-wash-profiles" aria-label="处理预设">
             <SectionLabel>处理预设</SectionLabel>
             <div className="halo-profile-row">
-              <input aria-label="预设名称" placeholder="预设名称" maxLength={40} value={profileName} disabled={busy} onChange={event => setProfileName(event.target.value)} />
+              <input className="halo-profile-name-input" aria-label="预设名称" placeholder="输入预设名称" maxLength={40} value={profileName} disabled={busy} onChange={event => setProfileName(event.target.value)} />
               <Button compact disabled={busy || !profileName.trim()} onClick={saveProfile}>保存</Button>
             </div>
             {profiles.length > 0 && <div className="halo-profile-row">
@@ -261,12 +270,6 @@ export function WashOptionsPanel({ ctrl }: { ctrl: WashController }) {
                 ? `已确认 ${ctrl.scanSummary.totalFiles} 个文件`
                 : "开始前会先扫描并请你确认文件范围"}
         </p>}
-        {!safetyNoteDismissed && <div className="halo-safety-note halo-safety-note-critical" role="note">
-          <span>{ctrl.backupDirectory ? "处理前会复制备份；洗码仍会修改原文件。" : "洗码会直接修改原文件；重要文件建议先启用备份。"}</span>
-          <button className="halo-safety-note-dismiss" aria-label="关闭原文件修改提示" onClick={() => setSafetyNoteDismissed(true)}>
-            <CloseIcon aria-hidden="true" />
-          </button>
-        </div>}
         <div className="halo-button-row">
           <Button
             variant="primary"

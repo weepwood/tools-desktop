@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getHistorySession } from "../api";
 import { CloseIcon, ProjectIcon, SearchIcon } from "../lib/icons";
+import { Button, EmptyState } from "../components/ui";
+import { useScrollFade } from "../lib/useScrollFade";
 import type { FileRecord, RestoreFileRecord, RestoreRecord, SessionRecord, VerificationMode } from "../types";
 import "./HistoryView.css";
 
@@ -58,18 +60,20 @@ export function HistoryView(props: HistoryViewProps) {
   const visiblePage = Math.min(page, Math.max(0, Math.ceil(filtered.length / 10) - 1));
   const selected = props.history.find((session) => session.id === selectedId);
   const listRef = useRef<HTMLDivElement>(null);
+  useScrollFade(listRef);
   useEffect(() => { listRef.current?.scrollTo(0, 0); }, [visiblePage, query]);
 
   return <section className={`halo-history-view ${selected ? "has-selection" : ""}`} aria-label="历史记录工作区">
     {props.progress && <div className="halo-history-live" role="status"><div className="halo-card-heading"><strong>正在恢复 {props.progress.completed} / {props.progress.total}</strong><button className="halo-button danger compact" disabled={props.progress.cancelling} onClick={() => void props.onCancel()}>{props.progress.cancelling ? "正在停止…" : "停止恢复"}</button></div><div className="halo-progress" role="progressbar" aria-label="恢复进度" aria-valuenow={props.progress.completed} aria-valuemin={0} aria-valuemax={Math.max(props.progress.total, 1)}><div style={{ width: `${Math.min(100, props.progress.completed / Math.max(props.progress.total, 1) * 100)}%` }} /></div><p className="halo-current-file" title={props.progress.currentFile}>{props.progress.currentFile || "正在准备…"}</p></div>}
-    <div className="halo-history-split">
+    <div className="halo-history-split" data-empty={!props.history.length && !props.loading}>
+    {!props.history.length && !props.loading ? <EmptyState icon={<ProjectIcon aria-hidden="true" />} title="还没有任务记录" description="完成一次文件洗码后，这次任务的每个文件、校验结果与可恢复状态都会保存在本机，之后可以在这里验证并恢复。" action={<Button compact onClick={props.onOpenWash}>打开文件洗码</Button>} /> : <>
     <aside className="halo-history-list" aria-label="任务记录">
       <div className="halo-history-list-tools">
         <div className="halo-card-heading"><h2>任务记录</h2><span className="halo-muted">{props.history.length} 次任务</span></div>
         <SearchField label="搜索历史记录" placeholder="搜索文件夹、日期或任务编号" value={query} onChange={(value) => { setQuery(value); setPage(0); }} />
       </div>
       <div className="halo-history-list-body" ref={listRef} aria-busy={props.loading}>
-        {props.loading && !props.history.length ? <p className="halo-history-placeholder" role="status">正在读取历史记录…</p> : !filtered.length ? queryText ? <p className="halo-history-placeholder">没有匹配的任务记录。</p> : <div className="halo-history-empty"><ProjectIcon aria-hidden="true" /><strong>还没有任务记录</strong><p>完成文件洗码后，记录会保存在本机，之后可在这里验证并恢复。</p><button className="halo-button secondary compact" onClick={props.onOpenWash}>打开文件洗码</button></div> : filtered.slice(visiblePage * 10, (visiblePage + 1) * 10).map((session) => <button key={session.id} className="halo-history-item" aria-pressed={selected?.id === session.id} onClick={() => setSelectedId(session.id)}>
+        {props.loading && !props.history.length ? <p className="halo-history-placeholder" role="status">正在读取历史记录…</p> : !filtered.length ? <p className="halo-history-placeholder">没有匹配的任务记录。</p> : filtered.slice(visiblePage * 10, (visiblePage + 1) * 10).map((session) => <button key={session.id} className="halo-history-item" aria-pressed={selected?.id === session.id} onClick={() => setSelectedId(session.id)}>
           <span className="halo-history-item-top"><strong>{date(session.startedAt)}</strong><span className={`halo-status ${session.interrupted || session.cancelled ? "cancelled" : session.failed || session.taskError || session.historyError ? "failed" : "success"}`}>{sessionState(session)}</span></span>
           <span className="halo-history-item-path" title={session.rootPath}>{session.rootPath}</span>
           <span className="halo-muted">{session.success} 成功 · {session.failed} 失败 · {session.skipped} 跳过</span>
@@ -77,7 +81,8 @@ export function HistoryView(props: HistoryViewProps) {
       </div>
       {!!filtered.length && <Pager total={filtered.length} page={visiblePage} size={10} onChange={setPage} label="任务" />}
     </aside>
-    {selected ? <HistoryDetail key={selected.id} {...props} summary={selected} onBack={() => setSelectedId("")} /> : <div className="halo-history-detail-empty"><ProjectIcon aria-hidden="true" /><h2>选择一条任务记录</h2><p>查看文件明细、恢复状态与操作记录。</p></div>}
+    {selected ? <HistoryDetail key={selected.id} {...props} summary={selected} onBack={() => setSelectedId("")} /> : <EmptyState icon={<ProjectIcon aria-hidden="true" />} title="选择一条任务记录" description="查看文件明细、恢复状态与操作记录。" />}
+    </>}
     </div>
   </section>;
 }
@@ -91,6 +96,7 @@ function HistoryDetail({ summary, onBack, loadSession = getHistorySession, ...pr
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
+  useScrollFade(bodyRef);
 
   useEffect(() => {
     let active = true;

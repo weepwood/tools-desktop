@@ -3,15 +3,26 @@
 }
 
 .shutdown-content {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: var(--space-6);
+  padding: 0 var(--gutter) var(--gutter);
 }
 
+/* A single form card stays on the page gutter instead of floating in the
+   middle of the canvas — the title above it is on that same axis. */
 .shutdown-content > .halo-card {
-  width: min(100%, 620px);
-  margin: 0 auto;
+  width: min(100%, 560px);
+}
+
+/* The unsupported state is a full-pane empty state, not a stub card. */
+.shutdown-unsupported {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-height: 0;
 }
 
 .shutdown-mode-row,
@@ -35,19 +46,32 @@
 
 .shutdown-input {
   min-height: var(--control-height);
-  padding: 0 10px;
+  padding: 0 11px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
-  background: var(--color-bg-inset);
+  background: var(--color-bg-surface);
+  box-shadow: inset 0 1px 1px color-mix(in srgb, var(--color-text) 3%, transparent);
   color: var(--color-text);
   font: inherit;
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
+  transition: border-color var(--dur-2) var(--ease-standard), box-shadow var(--dur-2) var(--ease-standard);
+}
+
+.shutdown-input:hover:not(:disabled):not(:focus-visible) {
+  border-color: var(--color-text-tertiary);
 }
 
 .shutdown-input:focus-visible {
   border-color: var(--halo-focus-color);
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--halo-focus-color) 18%, transparent);
+}
+
+.shutdown-input:disabled {
+  color: var(--color-text-disabled);
+  border-color: var(--color-border);
+  background: var(--color-bg-inset);
+  cursor: not-allowed;
 }
 
 .shutdown-hours-input {

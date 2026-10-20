@@ -1,5 +1,5 @@
 import { Button } from "../components/ui";
-import { NoticeToast } from "../components/NoticeToast";
+import { NoticeStack, NoticeToast } from "../components/NoticeToast";
 import { taskLabel } from "../lib/taskStatus";
 import type { HaloSection } from "../shell/LeftSidebar";
 import { HistoryView } from "./HistoryView";
@@ -52,7 +52,7 @@ export function HaloWorkspace({ section, onOpenWash }: { section: HaloSection; o
         </header>
       )}
 
-      <div className="halo-notice-stack">
+      <NoticeStack>
         {ctrl.externalTaskRunning && (
           <div className="halo-notice info" role="status">
             <span>{taskLabel(ctrl.taskStatus.kind)}正在运行，结束后可继续操作。</span>
@@ -74,7 +74,7 @@ export function HaloWorkspace({ section, onOpenWash }: { section: HaloSection; o
         {ctrl.notice && (
           <NoticeToast type={ctrl.notice.type} message={ctrl.notice.text} onDismiss={ctrl.dismissNotice} />
         )}
-      </div>
+      </NoticeStack>
 
       {section === "wash" ? (
         <section className="halo-wash-layout" aria-label="文件洗码">

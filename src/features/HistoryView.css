@@ -1,8 +1,9 @@
-.halo-history-view { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
-.halo-history-split { display: grid; grid-template-columns: minmax(250px, 300px) minmax(0, 1fr); flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+.halo-history-view { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; overflow: hidden; padding: 0 var(--gutter) var(--gutter); }
+.halo-history-split { display: grid; grid-template-columns: minmax(250px, 300px) minmax(0, 1fr); flex: 1; min-height: 0; min-width: 0; overflow: hidden;
+  border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-surface); box-shadow: var(--elev-1); }
 .halo-history-list, .halo-history-detail { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .halo-history-list { border-right: 1px solid var(--color-border); }
-.halo-history-list-tools { flex-shrink: 0; padding: 18px 16px 14px; border-bottom: 1px solid var(--color-border); }
+.halo-history-list-tools { flex-shrink: 0; padding: var(--panel-pad); border-bottom: 1px solid var(--color-border); }
 .halo-history-list-tools .halo-card-heading { margin-bottom: 12px; }
 .halo-history-view .halo-search-field { max-width: none; width: 100%; }
 .halo-history-list-body, .halo-history-detail-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
@@ -14,22 +15,17 @@
 .halo-history-item-top .halo-status, .halo-history-file-top .halo-status { flex-shrink: 0; }
 .halo-history-item-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); }
 .halo-history-placeholder { padding: 30px 16px; color: var(--color-text-secondary); font-size: var(--text-sm); line-height: 1.7; text-align: center; overflow-wrap: anywhere; }
-.halo-history-empty { display: grid; justify-items: center; align-content: center; gap: 10px; min-height: 100%; padding: 28px 16px; color: var(--color-text-secondary); text-align: center; }
-.halo-history-empty svg { width: 26px; height: 26px; }
-.halo-history-empty strong { color: var(--color-text); font-size: var(--text-md); font-weight: 550; }
-.halo-history-empty p { max-width: 34ch; margin: 0; font-size: var(--text-sm); line-height: 1.6; }
-.halo-history-empty .halo-button { margin-top: 4px; }
-.halo-history-detail-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; color: var(--color-text-secondary); text-align: center; }
-.halo-history-detail-empty svg { width: 32px; height: 32px; }
-.halo-history-detail-empty h2 { margin: 0; color: var(--color-text); font-size: var(--text-md); font-weight: 550; }
-.halo-history-detail-empty p { margin: 0; font-size: var(--text-sm); }
-.halo-history-detail-head { flex-shrink: 0; padding: 18px 20px 12px; border-bottom: 1px solid var(--color-border); }
+/* Empty history is one empty state for the whole card, not one per pane:
+   the split collapses to a single column so the message can breathe. */
+.halo-history-split[data-empty="true"] { grid-template-columns: minmax(0, 1fr); }
+.halo-history-detail > .halo-empty-state { min-height: 100%; }
+.halo-history-detail-head { flex-shrink: 0; padding: var(--panel-pad) var(--panel-pad) 12px; border-bottom: 1px solid var(--color-border); }
 .halo-history-detail-head .halo-card-heading { margin-bottom: 8px; }
 .halo-history-detail-head > .halo-muted { margin: 8px 0 12px; line-height: 1.6; }
 .halo-history-root { margin: 0; overflow-wrap: anywhere; user-select: text; font-size: var(--text-sm); line-height: 1.6; }
 .halo-history-detail-head > .halo-history-root { max-height: 70px; overflow: auto; }
 .halo-history-back { display: none; align-items: center; min-height: 28px; }
-.halo-history-detail-body { padding: 16px 20px; }
+.halo-history-detail-body { padding: var(--panel-pad); }
 .halo-history-file-tools { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .halo-history-file-tools .halo-search-field { flex: 1; min-width: 180px; }
 .halo-history-file { padding: 14px 0; border-bottom: 1px solid var(--color-border); }
@@ -38,7 +34,7 @@
 .halo-history-file-meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-top: 8px; }
 .halo-history-file-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .halo-history-file-actions .halo-link-button { margin: 0; padding: 3px 0; }
-.halo-history-view .halo-link-button:disabled { color: var(--color-text-secondary); opacity: .5; cursor: default; }
+.halo-history-view .halo-link-button:disabled { color: var(--color-text-disabled); cursor: default; }
 .halo-history-file-error, .halo-history-warning { font-size: var(--text-xs); line-height: 1.7; overflow-wrap: anywhere; user-select: text; }
 .halo-history-file-error { margin: 6px 0; color: var(--halo-danger-text); }
 .halo-history-warning { padding: 10px 12px; margin: 0 0 14px; border-left: 2px solid var(--color-warning); background: var(--color-bg-inset); color: var(--halo-warning-text); }

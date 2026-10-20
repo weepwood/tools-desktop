@@ -4,7 +4,7 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 const logger=require('./logger.cjs');
 class History {
-  constructor(directory){this.directory=directory;this.historyPath=path.join(directory,'history.json');this.journals=path.join(directory,'journals');this.restores=path.join(directory,'restores');this.warnings=[];}
+  constructor(directory){this.directory=directory;this.historyPath=path.join(directory,'history.json');this.journals=path.join(directory,'journals');this.restores=path.join(directory,'restores');this.warnings=[];this._sessions=null;this._signature=null;}
   async ensure(){await fs.mkdir(this.directory,{recursive:true});await fs.mkdir(this.journals,{recursive:true});await fs.mkdir(this.restores,{recursive:true});}
   note(message,level='warn'){this.warnings.push(message);logger[level](message);}
   async atomicWrite(location,content){
@@ -48,7 +48,29 @@ class History {
       : 'history.json 损坏且无法另存，历史记录已重新建立','error');
     return [];
   }
+  async _directorySignature(){
+    // Cheap stat of history.json plus every journal's name/mtime/size. If nothing
+    // on disk changed, load() can return the cached parsed sessions without
+    // re-reading and JSON-parsing every journal; any new, removed, or modified
+    // journal changes the signature and forces a rebuild, so malformed journals
+    // and freshly written sessions are always detected.
+    const parts=[];
+    try{const st=await fs.stat(this.historyPath);parts.push('h:'+st.mtimeMs+':'+st.size);}catch{parts.push('h:-');}
+    try{
+      for(const entry of await fs.readdir(this.journals,{withFileTypes:true})){
+        if(!entry.isFile()||!entry.name.endsWith('.jsonl'))continue;
+        const st=await fs.stat(path.join(this.journals,entry.name));
+        parts.push(entry.name+':'+st.mtimeMs+':'+st.size);
+      }
+    }catch(error){if(error.code!=='ENOENT')parts.push('j:'+error.code);}
+    return parts.sort().join('|');
+  }
   async load(){
+    // History only changes through saveSession/clear/recoverRestoreRuns, so a
+    // signature check lets repeated reads (summaries, getSession, diagnostics)
+    // skip re-parsing every journal while staying correct when disk state moves.
+    const signature=await this._directorySignature();
+    if(this._sessions&&signature===this._signature)return this._sessions;
     this.warnings=[];
     const sessions=await this.base();await this.ensure();
     for(const item of await fs.readdir(this.journals,{withFileTypes:true})){
@@ -91,7 +113,9 @@ class History {
         this.note(warning);
       }
     }
-    return sessions.sort((a,b)=>b.startedAt.localeCompare(a.startedAt));
+    this._sessions=sessions.sort((a,b)=>b.startedAt.localeCompare(a.startedAt));
+    this._signature=signature;
+    return this._sessions;
   }
   async getSession(id){const session=(await this.load()).find(x=>x.id===id);if(!session)throw Error('未找到对应的历史记录');return session;}
   async summaries(){return (await this.load()).map(x=>({...x,files:[],restoreRuns:(x.restoreRuns||[]).map(r=>({...r,files:[]}))}));}
@@ -175,6 +199,7 @@ class History {
       recovered.push(record.id);
     }
     this.warnings.push(...warnings);
+    this._sessions=null;
     return recovered;
   }
   async saveSession(session){
@@ -183,10 +208,12 @@ class History {
     try{await fs.copyFile(this.historyPath,this.historyPath+'.bak');}catch(e){if(e.code!=='ENOENT')throw e;}
     await this.atomicWrite(this.historyPath,JSON.stringify(current,null,2));
     await fs.rm(path.join(this.journals,session.id+'.jsonl'),{force:true});
+    this._sessions=null;
   }
   async clear(){
     await this.ensure();await fs.rm(this.historyPath,{force:true});
     for(const name of await fs.readdir(this.journals)){if(name.endsWith('.jsonl'))await fs.rm(path.join(this.journals,name),{force:true});}
+    this._sessions=null;
   }
   async exportCsv(id,destination){
     const session=await this.getSession(id);

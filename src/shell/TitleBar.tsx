@@ -1,12 +1,12 @@
 import { isMacOS } from "../lib/tauri";
 import { WindowControls } from "./WindowControls";
-import { PanelToggles } from "./PanelToggles";
 import { Tooltip } from "../lib/Tooltip";
 import { useShortcuts } from "../lib/shortcuts";
-import { PlusIcon, CloseIcon, PanelLeftIcon } from "../lib/icons";
+import { PanelLeftIcon } from "../lib/icons";
 import type { PanelState } from "./AppShell";
 import type { UIVisibility } from "../lib/settingsStore";
-import type { Tab } from "./useTabs";
+import type { WorkspaceTabId, WorkspaceTabState } from "../lib/workspace-tabs.mjs";
+import { TitleBarTabs } from "./TitleBarTabs";
 import "./TitleBar.css";
 
 interface TitleBarProps {
@@ -16,20 +16,23 @@ interface TitleBarProps {
   /** Hovering the left toggle previews the closed sidebar. */
   onLeftPeekStart: () => void;
   onLeftPeekEnd: () => void;
-  tabs: Tab[];
-  activeTabId: number | null;
-  onSelectTab: (id: number) => void;
-  onCloseTab: (id: number) => void;
-  onNewTab: () => void;
+  tabs: WorkspaceTabState;
+  screenCaptureAvailable: boolean;
+  tabPickerOpen: boolean;
+  onSelectTab: (tab: WorkspaceTabId) => void;
+  onCloseTab: (tab: WorkspaceTabId) => void;
+  onMoveTab: (fromIndex: number, toIndex: number) => void;
+  onTabPickerOpenChange: (open: boolean) => void;
 }
 
 /**
  * Transparent title bar overlaying the full window width: its contents
- * never move — opening a sidebar just slides a new background
- * underneath them. It's a single row — left cluster, the tab strip, and
- * the right cluster — and doubles as the drag region. On macOS the left
- * cluster starts past the inset traffic lights; on Windows/Linux custom
- * window controls render on the right.
+ * never move — opening the sidebar just slides a new background
+ * underneath them. The middle area contains the workspace tab strip and
+ * the window controls stay pinned on the right.
+ *
+ * On macOS the left cluster starts past the inset traffic lights; on
+ * Windows/Linux custom window controls render on the right.
  */
 export function TitleBar({
   panels,
@@ -38,10 +41,12 @@ export function TitleBar({
   onLeftPeekStart,
   onLeftPeekEnd,
   tabs,
-  activeTabId,
+  screenCaptureAvailable,
+  tabPickerOpen,
   onSelectTab,
   onCloseTab,
-  onNewTab,
+  onMoveTab,
+  onTabPickerOpenChange,
 }: TitleBarProps) {
   const mac = isMacOS();
   const { binding } = useShortcuts();
@@ -95,47 +100,18 @@ export function TitleBar({
         </span>
       </div>
 
-      {/* Empty strip stays draggable; tab buttons opt out via CSS. */}
-      <div className="titlebar-tabs" data-tauri-drag-region>
-        {ui.tabs && (
-          <>
-        <div className="titlebar-tabs-list" role="tablist">
-          {tabs.map((tab) => (
-            <div
-              key={tab.id}
-              role="tab"
-              aria-selected={tab.id === activeTabId}
-              className="titlebar-tab"
-              data-active={tab.id === activeTabId}
-              onMouseDown={() => onSelectTab(tab.id)}
-              // Middle-click closes, matching common tab UIs.
-              onAuxClick={(e) => e.button === 1 && onCloseTab(tab.id)}
-            >
-              <span className="titlebar-tab-title">{tab.title}</span>
-              <Tooltip label="Close tab" shortcut={binding("close-tab")}>
-                <button
-                  className="titlebar-tab-close"
-                  aria-label={`Close ${tab.title}`}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={() => onCloseTab(tab.id)}
-                >
-                  <CloseIcon />
-                </button>
-              </Tooltip>
-            </div>
-          ))}
-        </div>
-        <Tooltip label="New tab" shortcut={binding("new-tab")}>
-          <button className="icon-button titlebar-tab-new" onClick={onNewTab}>
-            <PlusIcon />
-          </button>
-        </Tooltip>
-          </>
-        )}
-      </div>
+      <TitleBarTabs
+        state={tabs}
+        screenCaptureAvailable={screenCaptureAvailable}
+        pickerOpen={tabPickerOpen}
+        onSelect={onSelectTab}
+        onClose={onCloseTab}
+        onMove={onMoveTab}
+        onOpenPicker={() => onTabPickerOpenChange(!tabPickerOpen)}
+        onClosePicker={() => onTabPickerOpenChange(false)}
+      />
 
       <div className="titlebar-right">
-        <PanelToggles panels={panels} ui={ui} onToggle={onToggle} />
         <WindowControls />
       </div>
     </header>

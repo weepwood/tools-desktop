@@ -59,10 +59,11 @@ function execBinary(file,args,signal,timeout=60000,onLine=()=>{},onLog=()=>{}){
   });
 }
 class Video {
-  constructor(userData){this.directory=path.join(userData,'video-tasks');this.userData=userData;this.warnings=[];}
+  constructor(userData){this.directory=path.join(userData,'video-tasks');this.userData=userData;this.warnings=[];this._listCache=null;}
   async ensure(){await fs.mkdir(this.directory,{recursive:true});}
   recordPath(id){if(!/^[\da-f-]{36}$/i.test(id))throw Error('任务编号无效');return path.join(this.directory,id+'.json');}
   async save(task){
+    this._listCache=null;
     await this.ensure();const output=this.recordPath(task.id);
     const temp=output+'.'+crypto.randomUUID()+'.tmp';
     const handle=await fs.open(temp,'wx');
@@ -71,6 +72,17 @@ class Video {
   }
   async get(id){return JSON.parse(await fs.readFile(this.recordPath(id),'utf8'));}
   async list(){
+    // The halo://image protocol calls imageAllowed() once per thumbnail, and
+    // each call used to re-read and JSON.parse every task record. A short TTL
+    // cache lets a whole gallery page (up to 24 images) share one scan; it is
+    // invalidated whenever a task is saved or recovered so the list never goes
+    // stale beyond the window.
+    if(this._listCache&&Date.now()-this._listCache.at<2000)return this._listCache.value;
+    const value=await this._readList();
+    this._listCache={value,at:Date.now()};
+    return value;
+  }
+  async _readList(){
     await this.ensure();const tasks=[],warnings=[];
     for(const entry of await fs.readdir(this.directory,{withFileTypes:true})){
       if(!entry.isFile()||!entry.name.endsWith('.json'))continue;
@@ -90,6 +102,7 @@ class Video {
     return tasks.sort((a,b)=>b.startedAt.localeCompare(a.startedAt));
   }
   async recover(){
+    this._listCache=null;
     for(const task of await this.list()){
       if(task.status==='running'){task.status='interrupted';task.finishedAt=new Date().toISOString();task.error='程序意外退出，任务已中断';await this.save(task);}
     }

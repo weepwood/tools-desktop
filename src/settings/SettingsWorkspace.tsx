@@ -22,7 +22,7 @@ export function SettingsWorkspace({ onBack }: { onBack: () => void }) {
   return (
     <section className="settings-page" aria-label="设置">
       <div className="settings-page-body">
-        <SettingsSidebar active={category} onSelect={setCategory} />
+        <SettingsSidebar active={category} visible={view === "settings"} onSelect={setCategory} />
         <div className="settings-page-main">
           <SettingsBody category={category} />
         </div>

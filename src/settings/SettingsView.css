@@ -5,14 +5,14 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--space-5) var(--space-6) var(--space-7);
+  padding: var(--space-5) var(--gutter) var(--space-7);
 }
 
-/* Fixed-width column, horizontally centered in the pane. */
+/* Fixed-width column anchored on the gutter, like every workspace panel:
+   the eye follows one left edge instead of re-finding a centred column. */
 .settings-content-column {
   width: 100%;
   max-width: var(--settings-content-width);
-  margin: 0 auto;
 }
 
 .settings-title {

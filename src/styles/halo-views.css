@@ -18,3 +18,26 @@
 .halo-shell-root {
   height: 100%;
 }
+
+.halo-tab-empty {
+  display: flex;
+  height: 100%;
+  min-height: 220px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.halo-tab-empty strong {
+  color: var(--color-text);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-emphasis);
+}
+
+.halo-tab-empty span {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-sm);
+}

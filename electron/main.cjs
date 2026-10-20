@@ -1,7 +1,8 @@
 'use strict';
-const {app,BrowserWindow,ipcMain,dialog,Tray,Menu,nativeImage,Notification,protocol,shell}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,Tray,Menu,nativeImage,Notification,protocol,shell,safeStorage}=require('electron');
 const fs=require('node:fs/promises');
 const path=require('node:path');
+const os=require('node:os');
 const crypto=require('node:crypto');
 const {execFile}=require('node:child_process');
 const {promisify}=require('node:util');
@@ -10,6 +11,8 @@ const {scan,findDuplicates,wash,restore}=require('./engine.cjs');
 const {History}=require('./history.cjs');
 const {Video}=require('./video.cjs');
 const {SplitService}=require('./split.cjs');
+const {Mailer}=require('./mailer.cjs');
+const {ScreenCapture}=require('./screen-capture.cjs');
 const {validateCommand}=require('./ipc-validation.cjs');
 const logger=require('./logger.cjs');
 protocol.registerSchemesAsPrivileged([{scheme:'halo',privileges:{secure:true,standard:true,supportFetchAPI:true,stream:true}}]);
@@ -19,7 +22,7 @@ logger.init({directory:app.getPath('userData')});
 if(process.platform==='win32')app.setAppUserModelId('com.weepwood.halo.electron');
 const hasInstanceLock=app.requestSingleInstanceLock();
 if(!hasInstanceLock)app.quit();
-let win,tray,exiting=false,active=null,history,video,split;
+let win,tray,exiting=false,active=null,history,video,split,mailer,screenCapture;
 let trayVisible=true,launchHidden=false,shutdownPlan=null;
 const execFileAsync=promisify(execFile);
 const shutdownSchedulePath=()=>path.join(app.getPath('userData'),'shutdown-schedule.json');
@@ -61,7 +64,7 @@ app.on('child-process-gone',(event,details)=>{
 async function task(kind,fn){
   if(active)throw Error('已有任务正在执行：'+active.kind);
   const controller=new AbortController();
-  const holder={kind,controller,promise:null,progress:null,lastProgressBroadcast:0};
+  const holder={kind,controller,promise:null,progress:null,lastProgressBroadcast:0,lastRequestBroadcast:0};
   active=holder;statusChanged();
   try {const promise=fn(controller.signal);holder.promise=promise;return await promise;}
   finally{if(active===holder)active=null;statusChanged();}
@@ -204,9 +207,11 @@ async function cancelShutdown(){
 }
 function createTray(){
   if(tray||!trayVisible)return;
-  // A 32px tray asset stays crisp at 200% scaling; icon.png (512) is the
-  // fallback so a missing tray file never leaves an empty tray slot.
-  let icon=nativeImage.createFromPath(path.join(__dirname,'..','assets','tray.png'));
+  // macOS menu bar icons are 16pt with a matching @2x asset. Keep the HALO
+  // mark in color; template images are intentionally recolored by macOS.
+  const trayAsset=process.platform==='darwin'?'tray-mac.png':'tray.png';
+  let icon=nativeImage.createFromPath(path.join(__dirname,'..','assets',trayAsset));
+  if(process.platform==='darwin'&&!icon.isEmpty())icon.setTemplateImage(false);
   if(icon.isEmpty())icon=nativeImage.createFromPath(path.join(__dirname,'..','assets','icon.png'));
   if(icon.isEmpty())icon=nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO8rXFoAAAAASUVORK5CYII=');
   tray=new Tray(icon);
@@ -238,6 +243,7 @@ function createWindow(){
   const expected=development||pathToFileURL(path.join(__dirname,'..','dist','index.html')).toString();
   win=new BrowserWindow({width:1180,height:780,minWidth:820,minHeight:560,show:false,
     backgroundColor:'#15181e',frame:mac,titleBarStyle:mac?'hiddenInset':undefined,
+    ...(mac?{trafficLightPosition:{x:12,y:12}}:{}),
     // Explicit icon: packaged builds take it from the exe, but in development
     // this is what puts the HALO mark in the title bar and the taskbar.
     icon:path.join(__dirname,'..','assets','icon.png'),
@@ -265,20 +271,46 @@ function wire(){
         active.progress=payload;
         const terminal=['completed','cancelled','failed','skipped'].includes(payload?.kind)||payload?.progressPercent===100;
         if(terminal||Date.now()-active.lastProgressBroadcast>=150){active.lastProgressBroadcast=Date.now();statusChanged();}
+        // Per-file progress (e.g. wash/scan) used to fire a 'request:' IPC for
+        // every item — tens of thousands of serialised broadcasts for a large
+        // run. The renderer already coalesces these, so throttle the main-side
+        // broadcast to the same 150ms window; terminal events always pass through.
+        if(typeof requestId==='string'&&/^[\da-f-]{36}$/i.test(requestId)&&
+          (terminal||Date.now()-active.lastRequestBroadcast>=150)){
+          active.lastRequestBroadcast=Date.now();
+          broadcast('request:'+requestId,payload);
+        }
+      } else if(typeof requestId==='string'&&/^[\da-f-]{36}$/i.test(requestId)){
+        broadcast('request:'+requestId,payload);
       }
-      if(typeof requestId==='string'&&/^[\da-f-]{36}$/i.test(requestId))broadcast('request:'+requestId,payload);
     };
     switch(command){
       case 'frontend_ready':if(!launchHidden)show();return;
       case 'window_minimize':return win.minimize();
       case 'window_toggle_maximize':return win.isMaximized()?win.unmaximize():win.maximize();
       case 'window_close':return win.close();
-      case 'notify':if(Notification.isSupported()){new Notification({title:String(args.title||'HALO'),body:String(args.body||'')}).show();return true;}return false;
+      case 'notify':{
+        if(!Notification.isSupported())return false;
+        return await new Promise(resolve=>{
+          const notification=new Notification({title:String(args.title||'HALO'),body:String(args.body||'')});
+          let settled=false;
+          const finish=shown=>{if(settled)return;settled=true;resolve(shown);};
+          notification.once('show',()=>finish(true));
+          notification.once('failed',()=>finish(false));
+          notification.show();
+        });
+      }
       case 'is_autostart_enabled':return app.getLoginItemSettings().openAtLogin;
       case 'set_autostart':if(!app.isPackaged)throw Error('开机启动仅在安装后的应用中可配置');app.setLoginItemSettings({openAtLogin:Boolean(args.enabled),openAsHidden:Boolean(args.minimized)});return;
       case 'set_menu_bar_visible':trayVisible=Boolean(args.visible);if(trayVisible)createTray();else destroyTray();return;
       case 'settings_get':return await settings();
       case 'settings_set':return await saveSettings(args.settings);
+      // The password never travels back to the renderer: view() reports only
+      // whether a secret is stored and whether the OS keyring protects it.
+      case 'mail_config_get':return await mailer.view();
+      case 'mail_config_set':return await mailer.save(args.patch);
+      case 'mail_test':return await mailer.test();
+      case 'mail_notify':return await mailer.notifyTaskEnd({title:args.title,body:args.body});
       case 'get_shutdown_schedule':return {...await shutdownCapabilities(),plan:shutdownPlan};
       case 'schedule_shutdown':return await scheduleShutdown(args.scheduledAt,args.action);
       case 'cancel_shutdown':return await cancelShutdown();
@@ -320,6 +352,29 @@ function wire(){
       case 'video_output_suggestion':return video.suggest(args.videoPath,args.outputParent);
       case 'extract_video_frames':return task('video',signal=>video.extract(args.request,signal,send));
       case 'list_video_tasks':return video.list();
+      case 'screen_capture_supported':return screenCapture.supported();
+      case 'screen_capture_displays':return screenCapture.displays();
+      case 'screen_capture_last_session':return screenCapture.lastSession();
+      case 'screen_capture':return task('screen-capture',async signal=>{
+        await screenCapture.root(args.request.outputRoot);
+        const displays=await screenCapture.displays();
+        if(!displays.some(display=>display.id===args.request.displayId))
+          throw Error('所选显示器已不可用，请刷新显示器列表后重试。');
+        await screenCapture.checkAccess(args.request.displayId);
+        return await screenCapture.capture(args.request,signal,send);
+      });
+      case 'list_screen_capture_days':return screenCapture.listDays(args.outputRoot);
+      case 'get_screen_capture_frames':return screenCapture.getFrames(args.outputRoot,args.date,args.page,args.pageSize);
+      case 'export_screen_capture_day':return task('screen-video',signal=>
+        screenCapture.exportDay(args.outputRoot,args.date,args.fps,signal,send));
+      case 'open_screen_capture_day':{
+        if(!await screenCapture.rootRegistered(args.outputRoot))throw Error('此目录尚未登记为 HALO 屏幕截图目录。');
+        const root=await screenCapture.root(args.outputRoot),dir=path.join(root,args.date);
+        const stat=await fs.lstat(dir).catch(()=>null);
+        if(!stat?.isDirectory()||stat.isSymbolicLink()||await fs.realpath(dir)!==dir)
+          throw Error('此日期的截图目录不存在或路径已变化。');
+        const error=await shell.openPath(dir);if(error)throw Error(error);return;
+      }
       case 'split_video':return task('video-split',signal=>split.split(args.request,signal,send));
       case 'merge_split_task':return task('video-merge',signal=>split.merge(args.taskId,signal,send));
       case 'list_split_tasks':return split.list();
@@ -344,11 +399,23 @@ function wire(){
 }
 app.whenReady().then(async()=>{
   if(!hasInstanceLock)return;
+  if(process.platform==='darwin'){
+    const appIcon=nativeImage.createFromPath(path.join(__dirname,'..','assets','icon.png'));
+    if(!appIcon.isEmpty())app.dock?.setIcon(appIcon);
+  }
   history=new History(app.getPath('userData'));
   video=new Video(app.getPath('userData'));
+  screenCapture=new ScreenCapture(app.getPath('userData'));
   split=new SplitService(app.getPath('userData'),video);
+  mailer=new Mailer({
+    directory:app.getPath('userData'),
+    secureStorage:safeStorage,
+    version:app.getVersion(),
+    hostName:os.hostname(),
+  });
   // Recovery must never block startup: the reported runs are a bonus, not a gate.
   try{await history.recoverRestoreRuns();}catch(error){logger.error('恢复日志回收失败',error);}
+  try{await screenCapture.recover();}catch(error){logger.error('屏幕截图会话恢复失败',error);}
   await video.recover();
   await split.recover();
   protocol.handle('halo',async request=>{
@@ -356,7 +423,7 @@ app.whenReady().then(async()=>{
       const url=new URL(request.url);
       if(url.host!=='image')return new Response('Not found',{status:404});
       const file=decodeURIComponent(url.pathname.slice(1));
-      if(!await video.imageAllowed(file))return new Response('Forbidden',{status:403});
+      if(!await video.imageAllowed(file)&&!await screenCapture.imageAllowed(file))return new Response('Forbidden',{status:403});
       return new Response(await fs.readFile(file),{headers:{'Content-Type':'image/png','Cache-Control':'private, max-age=3600'}});
     }catch{return new Response('Not found',{status:404});}
   });

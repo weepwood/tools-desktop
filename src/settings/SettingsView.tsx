@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SETTINGS_CATEGORIES } from "./SettingsSidebar";
 import { ShortcutsSettings } from "./ShortcutsSettings";
+import { MailSettings } from "./MailSettings";
+import { Group, Row } from "./SettingsGroup";
 import { Toggle } from "./controls/Toggle";
 import { SegmentedControl } from "./controls/SegmentedControl";
 import { Select } from "./controls/Select";
-import { useSettings } from "../lib/settingsStore";
+import { useSettings, type NoticePosition } from "../lib/settingsStore";
 import { useTheme } from "../theme/useTheme";
+import { useScrollFade } from "../lib/useScrollFade";
 import type { ThemeChoice } from "../theme/ThemeProvider";
 import {
   isAutostartEnabled,
@@ -24,13 +27,17 @@ import "./SettingsView.css";
  * embedded anywhere without dragging the sidebar along.
  */
 export function SettingsBody({ category }: { category: string }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  useScrollFade(contentRef);
+
   return (
-    <div className="settings-content">
+    <div className="settings-content" ref={contentRef}>
       <div className="settings-content-column">
         <h1 className="settings-title">
           {SETTINGS_CATEGORIES.find((c) => c.id === category)?.label}
         </h1>
         {category === "general" && <GeneralSettings />}
+        {category === "mail" && <MailSettings />}
         {category === "appearance" && <AppearanceSettings />}
         {category === "shortcuts" && <ShortcutsSettings />}
         {category === "advanced" && <AdvancedSettings />}
@@ -39,34 +46,7 @@ export function SettingsBody({ category }: { category: string }) {
   );
 }
 
-/* ---- Shared row scaffolding ---- */
-
-interface RowProps {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}
-
-function Row({ title, description, children }: RowProps) {
-  return (
-    <div className="settings-row">
-      <div className="settings-row-text">
-        <div className="settings-row-title">{title}</div>
-        {description && <div className="settings-row-description">{description}</div>}
-      </div>
-      <div className="settings-row-control">{children}</div>
-    </div>
-  );
-}
-
-function Group({ label, children }: { label?: string; children: React.ReactNode }) {
-  return (
-    <section className="settings-group">
-      {label && <div className="settings-group-label">{label}</div>}
-      <div className="settings-group-card">{children}</div>
-    </section>
-  );
-}
+/* Row and Group are shared with panes that live in their own files. */
 
 /* ---- Categories ---- */
 
@@ -173,6 +153,20 @@ function GeneralSettings() {
             aria-label="任务通知"
           />
         </Row>
+        <Row title="应用内通知位置" description="设置成功、错误与操作提示在窗口中的显示位置">
+          <Select<NoticePosition>
+            value={settings.noticePosition}
+            onChange={(value) => update("noticePosition", value)}
+            aria-label="应用内通知位置"
+            options={[
+              { value: "top-left", label: "左上" },
+              { value: "top-right", label: "右上" },
+              { value: "bottom-left", label: "左下" },
+              { value: "bottom-right", label: "右下" },
+              { value: "center", label: "顶部居中" },
+            ]}
+          />
+        </Row>
         <Row
           title="测试通知"
           description="发送一条通知以检查系统权限"
@@ -181,7 +175,13 @@ function GeneralSettings() {
             className="control-button"
             onClick={() =>
               void sendNotification("HALO 测试通知", "系统通知已启用。")
-                .then((shown) => setFeedback(shown ? "测试通知已发送。" : "系统未授予通知权限。"))
+                .then((shown) =>
+                  setFeedback(
+                    shown
+                      ? "测试通知已发送。"
+                      : "系统未能显示通知；请检查通知权限和 macOS 应用签名状态。",
+                  ),
+                )
                 .catch((error) => setFeedback(`发送通知失败：${String(error)}`))
             }
           >

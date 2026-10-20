@@ -26,29 +26,35 @@
 .halo-wash-layout {
   display: grid;
   grid-template-columns: minmax(280px, 328px) minmax(0, 1fr);
-  gap: 14px;
+  gap: var(--panel-gap);
   flex: 1;
   min-height: 0;
-  padding: 0 14px 14px;
+  padding: 0 var(--gutter) var(--gutter);
   overflow: hidden;
   background: var(--color-bg-canvas);
 }
 
 /* ------------------------------------------------------------- 左：设置 */
 
+/* The options column is a card, exactly like the results column and like the
+   video screens. Before this it was transparent, so the same panel structure
+   read as a card on one screen and as bare canvas on the next. */
 .halo-options {
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elev-1);
 }
 
 .halo-options-body {
   flex: 1;
   min-height: 0;
-  padding: 16px 14px 18px;
+  padding: var(--panel-pad);
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -112,6 +118,34 @@
 .halo-profile-row input,
 .halo-profile-row select { flex: 1 1 auto; min-width: 0; }
 .halo-profile-row button { flex: 0 0 auto; }
+.halo-profile-name-input {
+  height: var(--control-height);
+  padding: 0 11px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  background: var(--color-bg-surface);
+  box-shadow: inset 0 1px 1px color-mix(in srgb, var(--color-text) 3%, transparent);
+  outline: none;
+  font: inherit;
+  font-size: var(--text-base);
+  transition:
+    border-color var(--dur-2) var(--ease-standard),
+    background var(--dur-2) var(--ease-standard),
+    box-shadow var(--dur-2) var(--ease-standard);
+}
+.halo-profile-name-input:hover:not(:disabled):not(:focus-visible) { border-color: var(--color-text-tertiary); }
+.halo-profile-name-input:focus-visible {
+  border-color: var(--halo-focus-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--halo-focus-color) 18%, transparent);
+}
+.halo-profile-name-input::placeholder { color: var(--color-text-tertiary); }
+.halo-profile-name-input:disabled {
+  color: var(--color-text-disabled);
+  border-color: var(--color-border);
+  background: var(--color-bg-inset);
+  cursor: not-allowed;
+}
 
 .halo-options-section .halo-field:first-of-type {
   margin-top: 10px;
@@ -153,7 +187,8 @@
 
 .halo-folder-picker:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  border-color: var(--color-border);
+  background: var(--color-bg-inset);
 }
 
 .halo-backup-field,
@@ -346,6 +381,7 @@
 
 .halo-disclosure > summary {
   display: flex;
+  min-height: var(--hit-min);
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -522,14 +558,14 @@
 }
 
 .halo-options > .halo-action-footer {
-  padding: 12px 14px 14px;
-  border-top: 0;
+  padding: 12px var(--panel-pad) var(--panel-pad);
+  border-top: 1px solid var(--color-border);
   background: transparent;
 }
 
 .halo-card.flush > .halo-card-heading {
   margin: 0;
-  padding: 16px var(--space-5) 12px;
+  padding: var(--panel-pad) var(--panel-pad) 12px;
 }
 
 .halo-results-inner {
@@ -549,14 +585,31 @@
   padding: 0 var(--space-5) 10px;
 }
 
+/* The table is the card's content, so it starts on the card's own padding
+   axis instead of adding a second, invisible 20px inset on top of it. */
 .halo-results-card .halo-table-wrap {
   flex: 1;
-  padding: 0 var(--space-5);
+  padding: 0;
+}
+
+.halo-results-card .halo-table-wrap th:first-child,
+.halo-results-card .halo-table-wrap td:first-child {
+  padding-left: var(--panel-pad);
+}
+
+.halo-results-card .halo-table-wrap th:last-child,
+.halo-results-card .halo-table-wrap td:last-child {
+  padding-right: var(--panel-pad);
+}
+
+.halo-results-card .halo-table-wrap th:first-child,
+.halo-results-card .halo-table-wrap th:last-child {
+  border-radius: 0;
 }
 
 .halo-results-card .halo-pagination {
   margin-top: auto;
-  padding: 10px var(--space-5) 14px;
+  padding: 10px var(--panel-pad) var(--panel-pad);
 }
 
 .halo-file-cell {

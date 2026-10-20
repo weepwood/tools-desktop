@@ -8,16 +8,16 @@ import { isTauri } from "./tauri";
  */
 
 /**
- * Which structural parts of the UI are enabled. Toggling these in
- * Appearance lets someone building on the template strip the shell down
- * to just the pieces they need.
+ * Which structural parts of the UI are enabled. HALO ships one window layout,
+ * so this is down to the navigation rail; the old tab strip / right inspector /
+ * bottom dock flags were permanently false and have been removed with the
+ * panels they described.
  */
 export interface UIVisibility {
-  tabs: boolean;
   leftSidebar: boolean;
-  rightSidebar: boolean;
-  bottomPanel: boolean;
 }
+
+export type NoticePosition = "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center";
 
 export interface AppSettings {
   displayName: string;
@@ -25,6 +25,7 @@ export interface AppSettings {
   reduceMotion: "system" | "on" | "off";
   uiFont: "system" | "segoe" | "yahei" | "dengxian" | "source-han";
   notifications: boolean;
+  noticePosition: NoticePosition;
   telemetry: boolean;
   /** Keep an icon in the menu bar / system tray. Read by Rust at startup. */
   showInMenuBar: boolean;
@@ -39,14 +40,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   reduceMotion: "system",
   uiFont: "system",
   notifications: true,
+  noticePosition: "bottom-right",
   telemetry: false,
   showInMenuBar: true,
   startMinimized: false,
   ui: {
-    tabs: false,
     leftSidebar: true,
-    rightSidebar: false,
-    bottomPanel: false,
   },
 };
 
@@ -60,12 +59,16 @@ type Listener = (s: AppSettings) => void;
 /** Merge persisted settings over the defaults, deep-merging nested `ui`. */
 function withDefaults(saved: Partial<AppSettings> | null | undefined): AppSettings {
   const uiFont = UI_FONTS.find((font) => font === saved?.uiFont) ?? "system";
+  const noticePosition = ["top-left", "top-right", "bottom-left", "bottom-right", "center"]
+    .find((position) => position === saved?.noticePosition) as NoticePosition | undefined;
   return {
     ...DEFAULT_SETTINGS,
     ...saved,
     uiFont,
-    // HALO exposes only implemented panes; ignore legacy scaffold-only toggles.
-    ui: { ...DEFAULT_SETTINGS.ui, ...saved?.ui, tabs: false, rightSidebar: false, bottomPanel: false },
+    noticePosition: noticePosition ?? DEFAULT_SETTINGS.noticePosition,
+    // Only the navigation rail is configurable; legacy scaffold keys in an old
+    // settings file are ignored instead of resurrecting dead panels.
+    ui: { leftSidebar: saved?.ui?.leftSidebar !== false },
   };
 }
 

@@ -65,14 +65,13 @@
   color: var(--color-text);
 }
 
-/* Right cluster stays pinned to the window edge even when it reserves
-   the sidebar's width (below), so its toggles never drift inward. */
+/* Right cluster stays pinned to the window edge. */
 .titlebar-right {
   justify-content: flex-end;
 }
 
 /* When the left sidebar is open, the left cluster spans (at least) the
-   sidebar width so the tab strip begins at the content edge and never
+   sidebar width so the drag strip begins at the content edge and never
    overlaps the sidebar. min-width (not width) keeps the icons from
    clipping at narrow sidebar sizes; it animates in step with the grid. */
 .titlebar-left {
@@ -87,141 +86,19 @@
   transition: none;
 }
 
-/* Mirror of the left cluster: when the right sidebar is open the right
-   cluster reserves (at least) its width so the tab strip ends at the
-   content edge and never slides over the panel. */
-.titlebar-right {
-  transition: min-width var(--transition-panel);
-}
-
-.app-shell[data-right-open="true"] .titlebar-right {
-  min-width: calc(var(--right-panel-width) - var(--space-3));
-}
-
-.app-shell[data-no-anim="true"] .titlebar-right {
-  transition: none;
-}
-
 /* Buttons must stay clickable inside the drag region. */
 .titlebar button {
   -webkit-app-region: no-drag;
 }
 
-/* One button height for the whole strip (panel toggles + window controls),
-   so a 44px bar reads as a single row instead of stacked elements. */
+/* One button height for the whole strip (nav toggle + window controls),
+   so the bar reads as a single row instead of stacked elements. */
 .titlebar .icon-button {
   height: 26px;
 }
 
-/* ---- Tab strip (fills the middle of the row) ---- */
-
-.titlebar-tabs {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  /* Left inset matches the buttons' vertical inset (44px bar, 26px
-     buttons → 9px), so the first tab doesn't touch the sidebar edge. */
-  padding: 0 var(--space-2) 0 var(--space-3);
-}
-
-.titlebar-tabs-list {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  min-width: 0;
-  /* Tabs keep their natural width; once they overflow the reserved
-     middle region the strip scrolls horizontally instead of shrinking.
-     The scrollbar is hidden — it'd look out of place in the title bar. */
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-}
-
-.titlebar-tabs-list::-webkit-scrollbar {
-  display: none;
-}
-
-.titlebar-tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 200px;
-  /* Keep the tab's natural width and never shrink it — the strip
-     scrolls instead. Titles still ellipsis at max-width for long names. */
-  flex-shrink: 0;
-  min-width: 0;
-  padding: 4px 6px 4px 10px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  font-size: var(--text-base);
-  color: var(--color-text-secondary);
-  -webkit-app-region: no-drag;
-  transition:
-    background var(--dur-2) var(--ease-standard),
-    color var(--dur-2) var(--ease-standard),
-    border-color var(--dur-2) var(--ease-standard);
-}
-
-.titlebar-tab:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text);
-}
-
-.titlebar-tab[data-active="true"] {
-  color: var(--color-text);
-  background: var(--color-bg-inset);
-  border-color: var(--color-border);
-}
-
-.titlebar-tab-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.titlebar-tab-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  border-radius: var(--radius-xs);
-  color: var(--color-text-tertiary);
-  opacity: 0;
-  transition:
-    opacity var(--dur-2) var(--ease-standard),
-    background var(--dur-2) var(--ease-standard),
-    color var(--dur-2) var(--ease-standard);
-}
-
-.titlebar-tab:hover .titlebar-tab-close,
-.titlebar-tab[data-active="true"] .titlebar-tab-close {
-  opacity: 1;
-}
-
-.titlebar-tab-close:hover {
-  background: var(--color-bg-active);
-  color: var(--color-text);
-}
-
-.titlebar-tab-close svg {
-  width: 13px;
-  height: 13px;
-}
-
-.titlebar-tab-new {
-  flex-shrink: 0;
-}
-
 /* ------------------------------------------------------- window controls */
 
-/* The buttons themselves live in WindowControls.css (shared with settings);
-   this only keeps them off the panel toggles. */
 .titlebar-right .window-controls {
   margin-left: var(--space-2);
 }

@@ -1,4 +1,4 @@
-import type { RestoreEvent, RestoreRecord, ScanRequest, ScanSummary, SessionRecord, WashEvent, WashRequest, TaskStatus, VideoTools, VideoInfo, VideoRequest, VideoEvent, VideoTask, VideoFramePage, VideoSplitRequest, VideoSplitRecord, VideoSplitEvent, DuplicateResult } from './types'
+import type { RestoreEvent, RestoreRecord, ScanRequest, ScanSummary, SessionRecord, WashEvent, WashRequest, TaskStatus, VideoTools, VideoInfo, VideoRequest, VideoEvent, VideoTask, VideoFramePage, VideoSplitRequest, VideoSplitRecord, VideoSplitEvent, DuplicateResult, ScreenCaptureDay, ScreenCaptureDisplay, ScreenCaptureEvent, ScreenCaptureFramePage, ScreenCaptureRequest, ScreenCaptureSession } from './types'
 
 async function call<T>(command: string, args: Record<string, unknown> = {}, onMessage?: (value: any) => void): Promise<T> {
   const bridge = window.halo
@@ -24,6 +24,17 @@ export const getVideoTaskFrames = (taskId: string, page: number) => call<VideoFr
 export const exportContactSheet = (taskId: string, page: number) => call<{path:string;frames:number}>('export_contact_sheet', { taskId, page, pageSize: 24 })
 export const openVideoOutput = (taskId: string) => call<void>('open_video_output', { taskId })
 export const videoOutputSuggestion = (videoPath: string, outputParent: string | null) => call<string>('video_output_suggestion', { videoPath, outputParent })
+export const screenCaptureSupported = () => call<boolean>('screen_capture_supported')
+export const lastScreenCaptureSession = () => call<ScreenCaptureSession | null>('screen_capture_last_session')
+export const screenCaptureDisplays = () => call<ScreenCaptureDisplay[]>('screen_capture_displays')
+export const startScreenCapture = (request: ScreenCaptureRequest, onMessage: (event: ScreenCaptureEvent) => void) =>
+  call<ScreenCaptureSession>('screen_capture', { request }, onMessage)
+export const listScreenCaptureDays = (outputRoot: string) => call<ScreenCaptureDay[]>('list_screen_capture_days', { outputRoot })
+export const getScreenCaptureFrames = (outputRoot: string, date: string, page: number) =>
+  call<ScreenCaptureFramePage>('get_screen_capture_frames', { outputRoot, date, page, pageSize: 24 })
+export const exportScreenCaptureDay = (outputRoot: string, date: string, fps: number, onMessage: (event: ScreenCaptureEvent) => void) =>
+  call<{ path: string; frames: number; fps: number }>('export_screen_capture_day', { outputRoot, date, fps }, onMessage)
+export const openScreenCaptureDay = (outputRoot: string, date: string) => call<void>('open_screen_capture_day', { outputRoot, date })
 export const listHistory = () => call<SessionRecord[]>('list_history')
 export const getHistorySession = (sessionId: string) => call<SessionRecord>('get_history_session', { sessionId })
 export const clearHistory = () => call<void>('clear_history')

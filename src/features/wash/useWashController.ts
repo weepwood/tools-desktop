@@ -25,6 +25,7 @@ import type {
 import { usePersistedState } from "../../lib/usePersistedState";
 import { useSettings } from "../../lib/settingsStore";
 import { isTauri, sendNotification } from "../../lib/tauri";
+import { notifyTaskEndByMail } from "../../lib/mail";
 import {
   formatBytes,
   normalizeError,
@@ -205,6 +206,9 @@ export function useWashController() {
     if (settingsRef.current.notifications) {
       void sendNotification("HALO 任务结果", text).catch(() => {});
     }
+    // Mail carries its own switch, so it also fires when system notifications
+    // are muted. notifyTaskEndByMail() is a no-op until SMTP is configured.
+    void notifyTaskEndByMail("HALO 任务结果", text);
   }
 
   function flushWashEvents() {

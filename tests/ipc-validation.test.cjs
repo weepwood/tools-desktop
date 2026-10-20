@@ -32,3 +32,31 @@ test('video inputs are bounded and validated',()=>{
     videoPath:validScan.rootPath,intervalSeconds:-1,outputParent:null}}),/截图请求/);
   assert.throws(()=>validateCommand('notify',{title:'x'.repeat(1000),body:'hi'}),/通知/);
 });
+test('screen capture commands validate platform options and local paths',()=>{
+  const root=process.platform==='win32'?'C:\\captures':'/tmp/captures';
+  assert.doesNotThrow(()=>validateCommand('screen_capture_supported',{}));
+  assert.doesNotThrow(()=>validateCommand('screen_capture_displays',{}));
+  assert.doesNotThrow(()=>validateCommand('list_screen_capture_days',{outputRoot:root}));
+  assert.doesNotThrow(()=>validateCommand('screen_capture',{request:{
+    displayId:'display-1',intervalSeconds:1,outputRoot:root}}));
+  assert.throws(()=>validateCommand('screen_capture',{request:{
+    displayId:'',intervalSeconds:1,outputRoot:root}}),/屏幕截图请求/);
+  assert.throws(()=>validateCommand('screen_capture',{request:{
+    displayId:'display-1',intervalSeconds:86401,outputRoot:root}}),/屏幕截图请求/);
+  assert.throws(()=>validateCommand('get_screen_capture_frames',{outputRoot:root,
+    date:'2026-02-30',page:0,pageSize:24}),/日期图库/);
+  assert.throws(()=>validateCommand('export_screen_capture_day',{outputRoot:root,
+    date:'2026-10-21',fps:60}),/视频导出/);
+  assert.throws(()=>validateCommand('open_screen_capture_day',{outputRoot:'relative',date:'2026-10-21'}),/日期目录/);
+});
+test('mail settings are bounded at the bridge',()=>{
+  assert.doesNotThrow(()=>validateCommand('mail_config_get',{}));
+  assert.doesNotThrow(()=>validateCommand('mail_test',{}));
+  assert.doesNotThrow(()=>validateCommand('mail_config_set',{patch:{host:'smtp.qq.com',port:465,
+    security:'tls',to:['a@b.com'],enabled:true,notifyOnTaskEnd:true,password:'x'}}));
+  assert.throws(()=>validateCommand('mail_config_set',{patch:{port:70000}}),/邮件端口/);
+  assert.throws(()=>validateCommand('mail_config_set',{patch:{security:'ssl'}}),/加密方式/);
+  assert.throws(()=>validateCommand('mail_config_set',{patch:{to:new Array(30).fill('a@b.com')}}),/收件人/);
+  assert.throws(()=>validateCommand('mail_notify',{title:'HALO',body:'y'.repeat(5000)}),/邮件通知内容/);
+  assert.doesNotThrow(()=>validateCommand('mail_notify',{title:'HALO 任务结果',body:'完成'}));
+});

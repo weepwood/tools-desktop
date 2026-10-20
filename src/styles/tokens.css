@@ -48,6 +48,10 @@
   --space-6: 24px;
   --space-7: 28px;
   --space-8: 32px;
+  /* Two steps the codebase already used by hand (10px and 14px) — named so
+     they stop being magic numbers scattered across feature sheets. */
+  --space-2-5: 10px;
+  --space-3-5: 14px;
 
   /* -------------------------------------------------------------- radii */
   --radius-xs: 6px;
@@ -58,7 +62,7 @@
   --radius-full: 999px;
 
   /* ------------------------------------------------------------- layout */
-  --titlebar-height: 44px;
+  --titlebar-height: 40px;
   --traffic-lights-width: 80px; /* macOS inset traffic lights reserve */
   --sidebar-width: 240px;
   --right-panel-width: 380px;
@@ -67,6 +71,17 @@
   --settings-content-width: 540px;
   --control-height: 36px;
   --control-height-sm: 32px;
+
+  /* One gutter decides every left edge: page title, first card, table head.
+     Panels then step inward by exactly --panel-pad, so an offset always reads
+     as designed rather than drifted. */
+  --gutter: 20px;
+  --panel-pad: 16px;
+  --panel-gap: 16px;
+
+  /* Smallest clickable box. Pointer targets below this get padding, not a
+     smaller hit area. */
+  --hit-min: 24px;
 
   /* ------------------------------------------------------------- motion
    * Durations are short on purpose: a desktop tool should feel instant.

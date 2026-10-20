@@ -106,11 +106,15 @@ async function scan(request, signal) {
       if(item.isDirectory()) { if(request.recursive) await visit(full,depth+1);continue; }
       if(!item.isFile()) continue;
       try {
-        const s=await fs.lstat(full);
-        if(!s.isFile()||s.isSymbolicLink())continue;
-        const stat=snap(await fs.lstat(full,{bigint:true}));
+        // One lstat with bigint:true covers both the isFile/symlink gate and the
+        // snap() metadata (size/fileId/modifiedNs) the later open() re-checks
+        // against. The previous code called lstat twice per file; at scale that
+        // doubled the metadata syscalls for no extra information.
+        const raw=await fs.lstat(full,{bigint:true});
+        if(!raw.isFile()||raw.isSymbolicLink())continue;
+        const stat=snap(raw);
         if(!validSize(stat.size))throw Error('文件大小超过允许范围');
-        if(request.skipSmall && s.size <= Number(request.minSizeBytes||0)) {result.smallSkipped++;continue;}
+        if(request.skipSmall && stat.size <= Number(request.minSizeBytes||0)) {result.smallSkipped++;continue;}
         if(ext.size && !ext.has(path.extname(item.name).slice(1).toLowerCase())){result.extensionSkipped++;continue;}
         const handle=await fs.open(full,constants.O_RDONLY | (constants.O_NOFOLLOW||0));
         let sampleSha256;
@@ -122,9 +126,9 @@ async function scan(request, signal) {
           if(!unchanged(opened,snap(await handle.stat({bigint:true}))))
             throw Error('内容采样期间文件发生变化');
         }finally{await handle.close();}
-        files.push({path:full,relativePath:path.relative(root,full),size:s.size,
+        files.push({path:full,relativePath:path.relative(root,full),size:stat.size,
           fileId:stat.fileId,modifiedNs:stat.modifiedNs,sampleSha256});
-        result.totalBytes+=s.size;
+        result.totalBytes+=stat.size;
       }catch(error){result.unreadable++;if(result.warnings.length<20)result.warnings.push(full+': '+error.message);}
     }
   };

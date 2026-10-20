@@ -2,7 +2,7 @@
   "name": "halo-desktop",
   "productName": "HALO",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "HALO — 本地文件洗码、校验恢复与视频工具的桌面工作台",
   "main": "electron/main.cjs",
   "license": "MIT",
@@ -79,6 +79,7 @@
       "artifactName": "HALO-Setup-${version}-${arch}.${ext}"
     },
     "mac": {
+      "identity": "-",
       "target": [
         "dmg",
         "zip"

@@ -1,7 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { CloseIcon } from "../lib/icons";
+import { useSettings } from "../lib/settingsStore";
 
 type NoticeTone = "info" | "success" | "error";
+
+export function NoticeStack({ children }: { children: ReactNode }) {
+  const { settings } = useSettings();
+  return <div className="halo-notice-stack" data-position={settings.noticePosition}>{children}</div>;
+}
 
 /** Routine updates clear themselves; errors stay until the user dismisses them. */
 export function NoticeToast({

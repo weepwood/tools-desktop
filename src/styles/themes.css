@@ -26,13 +26,16 @@
   --color-bg-active: rgba(18, 24, 45, 0.075);
   --color-bg-canvas: #f7f8fa; /* page canvas behind layered cards */
 
-  --color-border: rgba(18, 24, 45, 0.075);
-  --color-border-strong: rgba(18, 24, 45, 0.14);
+  --color-border: rgba(18, 24, 45, 0.11);
+  --color-border-strong: rgba(18, 24, 45, 0.18);
 
-  /* text */
+  /* text — tertiary carries every 12px label, so it is held above 4.5:1 on
+     every surface it lands on: white 5.14, inset grey 4.75, canvas 4.84,
+     the darker app base 4.59. */
   --color-text: #151821;
   --color-text-secondary: #5b6273;
-  --color-text-tertiary: #7b8496;
+  --color-text-tertiary: #666e7c;
+  --color-text-disabled: #a3a9b6;
 
   /* brand + state */
   --color-accent: #4658e8;
@@ -91,12 +94,13 @@
   --color-bg-active: rgba(255, 255, 255, 0.085);
   --color-bg-canvas: #10141a;
 
-  --color-border: rgba(255, 255, 255, 0.075);
+  --color-border: rgba(255, 255, 255, 0.1);
   --color-border-strong: rgba(255, 255, 255, 0.14);
 
   --color-text: #eef0f6;
   --color-text-secondary: #9aa2b5;
   --color-text-tertiary: #7d8799;
+  --color-text-disabled: #5a6274;
 
   --color-accent: #6d7cff;
   --color-accent-text: #0a0c11;

@@ -106,6 +106,10 @@
   opacity: 1;
 }
 
+.sidebar-selection-marker[data-animate="false"] {
+  transition: none;
+}
+
 .left-sidebar-nav,
 .settings-sidebar-nav {
   position: relative;

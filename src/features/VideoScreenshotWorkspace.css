@@ -8,10 +8,10 @@
 .video-layout {
   display: grid;
   grid-template-columns: minmax(280px, 328px) minmax(0, 1fr);
-  gap: 16px;
+  gap: var(--panel-gap);
   flex: 1;
   min-height: 0;
-  padding: 0 18px 18px;
+  padding: 0 var(--gutter) var(--gutter);
   overflow: hidden;
   background: var(--color-bg-canvas);
 }
@@ -30,13 +30,14 @@
 .video-options-body {
   flex: 1;
   min-height: 0;
-  padding: 18px;
+  padding: var(--panel-pad);
   overflow: auto;
   overscroll-behavior: contain;
 }
 
 .video-options .halo-action-footer {
   flex-shrink: 0;
+  padding: 12px var(--panel-pad) var(--panel-pad);
 }
 
 /* ---- 拖放/选择视频 ---- */
@@ -89,8 +90,15 @@
 }
 
 .video-drop:disabled {
-  opacity: 0.6;
+  border-color: var(--color-border);
+  background: var(--color-bg-inset);
   cursor: default;
+}
+
+.video-drop:disabled strong,
+.video-drop:disabled span,
+.video-drop:disabled > svg {
+  color: var(--color-text-disabled);
 }
 
 .video-source {
@@ -161,19 +169,12 @@
 
 /* ---- 折叠区 ---- */
 
+/* Spacing, divider and chevron all come from .halo-disclosure; these two
+   only set the type size, so a disclosure behaves the same on every screen. */
 .video-engine,
-.video-recent {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 1px solid var(--color-border);
+.video-recent,
+.video-log {
   font-size: var(--text-sm);
-}
-
-.video-engine summary,
-.video-recent summary,
-.video-log summary {
-  padding: 4px 0;
-  cursor: pointer;
 }
 
 .video-engine p {
@@ -184,9 +185,10 @@
   user-select: text;
 }
 
-.video-recent summary span {
+.video-recent summary small {
   margin-left: 6px;
   color: var(--color-text-tertiary);
+  font-size: var(--text-xs);
 }
 
 .video-recent > .halo-link-button {
@@ -233,26 +235,27 @@
 
 /* ---- 右：任务与画廊 ---- */
 
+/* One card, three bands: task summary / preview header / preview body.
+   The preview heading used to float on the canvas above a separate card,
+   which is why this column read as "two things" next to the wash column. */
 .video-results {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   min-width: 0;
   min-height: 0;
-  padding: 0;
   overflow: hidden;
-  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  box-shadow: var(--elev-1);
 }
 
 .video-task {
   flex-shrink: 0;
   max-height: 42%;
-  padding: 16px;
+  padding: var(--panel-pad);
   overflow: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--elev-1);
-  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .video-task h2,
@@ -305,7 +308,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 2px 2px 0;
+  padding: 12px var(--panel-pad);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .video-gallery-head > div {
@@ -316,13 +320,9 @@
 .video-gallery-scroll {
   flex: 1;
   min-height: 0;
-  padding: 16px;
+  padding: var(--panel-pad);
   overflow: auto;
   overscroll-behavior: contain;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-surface);
-  box-shadow: var(--elev-1);
 }
 
 .video-grid {
@@ -373,40 +373,23 @@
   font-variant-numeric: tabular-nums;
 }
 
-.video-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  min-height: 100%;
-  padding: 32px 16px;
+.video-gallery-note {
+  padding: 40px 0;
   color: var(--color-text-secondary);
+  font-size: var(--text-sm);
   text-align: center;
 }
 
-.video-empty > svg {
-  width: 36px;
-  height: 36px;
-  opacity: 0.6;
-}
-
-.video-empty strong {
-  color: var(--color-text);
-  font-size: var(--text-lg);
-  font-weight: var(--weight-emphasis);
-}
-
-.video-empty p {
-  max-width: 420px;
-  margin: 0;
-  line-height: var(--leading-relaxed);
-  overflow-wrap: anywhere;
+/* The shared empty state fills the gallery so its content stays optically
+   centred instead of hugging the top of a tall scroll area. */
+.video-gallery-scroll > .halo-empty-state,
+.video-gallery-scroll > [role="alert"] {
+  min-height: 100%;
 }
 
 .video-results > .halo-pagination {
   flex-shrink: 0;
-  padding: 10px 2px 0;
+  padding: 10px var(--panel-pad);
   border-top: 1px solid var(--color-border);
 }
 

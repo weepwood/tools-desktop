@@ -1,46 +1,28 @@
 /*
- * Three-panel frame. The left sidebar runs the full window height; the
- * bottom panel spans everything right of it; the right panel sits above
- * the bottom panel.
+ * Window frame: navigation rail + main content.
  *
- *   ┌──────┬──────────────┬─────────┐
- *   │      │     main     │  right  │
- *   │ left ├──────────────┴─────────┤
- *   │      │         bottom         │
- *   └──────┴────────────────────────┘
+ *   ┌──────┬──────────────────────┐
+ *   │      │        main          │
+ *   │ left │                      │
+ *   └──────┴──────────────────────┘
  *
- * Panels collapse by animating their grid track to 0.
+ * The rail collapses by animating its grid track to 0.
  */
 
 .app-shell {
   position: relative; /* anchors the floating title bar */
   height: 100%;
   display: grid;
-  grid-template-columns: 0 minmax(0, 1fr) 0;
-  grid-template-rows: minmax(0, 1fr) 0;
+  grid-template-columns: 0 minmax(0, 1fr);
   background: var(--color-bg-base);
-  transition: grid-template-columns var(--transition-panel),
-    grid-template-rows var(--transition-panel);
+  transition: grid-template-columns var(--transition-panel);
 }
 
 .app-shell[data-left-open="true"] {
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) 0;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
 }
 
-.app-shell[data-right-open="true"] {
-  grid-template-columns: 0 minmax(0, 1fr) var(--right-panel-width);
-}
-
-.app-shell[data-left-open="true"][data-right-open="true"] {
-  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--right-panel-width);
-}
-
-.app-shell[data-bottom-open="true"] {
-  grid-template-rows: minmax(0, 1fr) var(--bottom-panel-height);
-}
-
-/* While resizing (or snapping a peek into a real open), track changes
-   must be instant. */
+/* While snapping a peek into a real open, track changes must be instant. */
 .app-shell[data-no-anim="true"] {
   transition: none;
 }
