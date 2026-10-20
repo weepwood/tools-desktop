@@ -4,6 +4,7 @@ const path=require('node:path');
 const {spawn}=require('node:child_process');
 const crypto=require('node:crypto');
 const {pathToFileURL}=require('node:url');
+const logger=require('./logger.cjs');
 function availableBinary(name){
   const suffix=process.platform==='win32'?'.exe':'';
   const candidates=[];
@@ -85,7 +86,7 @@ class Video {
       }
     }
     this.warnings=warnings;
-    if(warnings.length)console.warn('部分视频记录不可用，原始文件已保留：'+warnings.join('；'));
+    if(warnings.length)logger.warn('部分视频记录不可用，原始文件已保留：'+warnings.join('；'));
     return tasks.sort((a,b)=>b.startedAt.localeCompare(a.startedAt));
   }
   async recover(){

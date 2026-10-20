@@ -3,6 +3,7 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 const crypto=require('node:crypto');
 const {resolveBinaries,execBinary}=require('./video.cjs');
+const logger=require('./logger.cjs');
 
 const GB=1000**3;
 const MAX_ATTEMPTS=9;
@@ -53,7 +54,7 @@ class SplitService {
       try{
         const data=await this.get(item.name.slice(0,-5));
         if(data?.id && data?.videoPath && data?.status)rows.push(data);
-      }catch(error){console.warn('损坏的切分记录已保留：',item.name,error.message);}
+      }catch(error){logger.warn('损坏的切分记录已保留：',item.name,error.message);}
     }
     return rows.sort((a,b)=>b.startedAt.localeCompare(a.startedAt));
   }

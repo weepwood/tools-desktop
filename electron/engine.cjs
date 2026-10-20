@@ -191,7 +191,11 @@ async function createBackupCopy(handle,backupRoot,file,sourceState,signal){
     if(!info.isDirectory()||info.isSymbolicLink())throw Error('备份目录中存在非普通文件夹，已停止备份');
   }
   const destination=path.join(directory,segments.at(-1));
-  const output=await fs.open(destination,'wx',0o600);
+  // Copy into a temporary sibling and rename on success. Writing straight into
+  // destination means a power loss leaves half a file behind, and the next run
+  // then trips over 'wx' (EEXIST) — that file would never wash again.
+  const temporary=destination+'.'+crypto.randomUUID()+'.tmp';
+  const output=await fs.open(temporary,'wx',0o600);
   let completed=false;
   try{
     const buffer=Buffer.alloc(1024*1024);
@@ -208,11 +212,13 @@ async function createBackupCopy(handle,backupRoot,file,sourceState,signal){
     if(backupStat.size!==sourceState.size)throw Error('备份大小校验失败');
     if(!unchanged(sourceState,snap(await handle.stat({bigint:true}))))
       throw Error('备份期间源文件发生变化');
+    await output.close();
+    await fs.rename(temporary,destination);
     completed=true;
     return destination;
   }finally{
-    await output.close();
-    if(!completed)await fs.rm(destination,{force:true}).catch(()=>{});
+    await output.close().catch(()=>{});
+    if(!completed)await fs.rm(temporary,{force:true}).catch(()=>{});
   }
 }
 async function washOne(file,request,signal,journal) {
@@ -316,10 +322,18 @@ async function wash(request,signal,send,history) {
   }
   session.finishedAt=now();session.cancelled ||= signal.aborted;
   send({kind:session.cancelled?'cancelled':'completed',completed:session.files.length,total:files.length,currentFile:null,result:null,message:null});
+  // Nothing ever wrote an 'end' event, so a crash right before saveSession made
+  // a fully finished three-hour run look interrupted forever. Files stay empty
+  // here: load() rebuilds them from the prepared/completed entries.
+  try{await journal({type:'end',session:{...session,files:[]}});}
+  catch(error){
+    session.taskError=(session.taskError?session.taskError+'；':'')+'任务日志收尾事件写入失败：'+error.message;
+    session.interrupted=true;
+  }
   try{await history.saveSession(session);}catch(error){session.historyError=error.message;session.interrupted=true;}
   return session;
 }
-async function restoreOne(file,override,signal){
+async function restoreOne(file,override,signal,journal){
   const start=Date.now();
   const resolvedPath=override && override!==file.path?override:null;
   const target=resolvedPath||file.path;
@@ -376,6 +390,9 @@ async function restoreOne(file,override,signal){
     if(!(await tail(handle,current.size,markerBytes.length)).equals(markerBytes))
       throw Error('尾部标记在校验期间发生变化，拒绝截断');
     checkAbort(signal);
+    // Truncation is destructive exactly like washing: record it before touching
+    // the file so an interrupted restore can be reported instead of forgotten.
+    if(journal)await journal({type:'prepared',path:file.path});
     await handle.truncate(file.beforeSize);await handle.sync();
     out.restoredSize=file.beforeSize;out.status='success';
     return out;
@@ -387,18 +404,34 @@ async function restore(request,signal,send,history){
   const selected=new Set(request.paths||[]);
   const candidates=session.files.filter(f=>(f.status==='success'||f.pending)&&(!selected.size||selected.has(f.path)));
   const record={id:uuid(),startedAt:now(),finishedAt:'',total:candidates.length,success:0,failed:0,skipped:0,cancelled:false,historyError:null,files:[]};
+  // The log file reuses the record id, so a leftover log is always traceable back.
+  const runId=record.id;
+  let journal=null;
+  try{journal=await history.startRestoreLog(runId,{sessionId:session.id,record});}
+  catch(error){record.historyError='恢复日志创建失败：'+error.message;}
   send({kind:'started',completed:0,total:candidates.length,currentFile:null,result:null,message:'准备恢复 '+candidates.length+' 个文件。'});
   for(const [i,file] of candidates.entries()){
     if(signal.aborted){record.cancelled=true;break;}
     send({kind:'progress',completed:i,total:candidates.length,currentFile:file.relativePath,result:null,message:null});
-    const result=await restoreOne(file,(request.pathOverrides||{})[file.path],signal);
+    const result=await restoreOne(file,(request.pathOverrides||{})[file.path],signal,journal);
     record.files.push(result);record[result.status]++;
+    if(journal){
+      try{await journal({type:'completed',file:result});}
+      catch(error){record.historyError='恢复日志写入失败：'+error.message;record.cancelled=true;break;}
+    }
     send({kind:'progress',completed:i+1,total:candidates.length,currentFile:file.relativePath,result,message:null});
   }
   record.finishedAt=now();record.cancelled ||= signal.aborted;
   send({kind:record.cancelled?'cancelled':'completed',completed:record.files.length,total:candidates.length,currentFile:null,result:null,message:null});
   session.restoreRuns=session.restoreRuns||[];session.restoreRuns.push(record);
-  try{await history.saveSession(session);}catch(error){record.historyError=error.message;}
+  let saved=true;
+  try{await history.saveSession(session);}catch(error){saved=false;record.historyError=error.message;}
+  // Keep the log when the session could not be saved: recoverRestoreRuns() picks
+  // it up on the next start instead of losing a destructive operation.
+  if(journal&&saved){
+    try{await history.finishRestoreLog(runId);}
+    catch(error){record.historyError=(record.historyError?record.historyError+'；':'')+'恢复日志清理失败：'+error.message;}
+  }
   return record;
 }
 module.exports={marker,scan,findDuplicates,wash,restore,digestFile,samplesFor,restoreOne,readRange,MAGIC};

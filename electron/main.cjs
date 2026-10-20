@@ -11,8 +11,11 @@ const {History}=require('./history.cjs');
 const {Video}=require('./video.cjs');
 const {SplitService}=require('./split.cjs');
 const {validateCommand}=require('./ipc-validation.cjs');
+const logger=require('./logger.cjs');
 protocol.registerSchemesAsPrivileged([{scheme:'halo',privileges:{secure:true,standard:true,supportFetchAPI:true,stream:true}}]);
 app.setName('HALO');
+// Before anything else: a crash on startup is exactly what we need on disk.
+logger.init({directory:app.getPath('userData')});
 if(process.platform==='win32')app.setAppUserModelId('com.weepwood.halo.electron');
 const hasInstanceLock=app.requestSingleInstanceLock();
 if(!hasInstanceLock)app.quit();
@@ -23,6 +26,38 @@ const shutdownSchedulePath=()=>path.join(app.getPath('userData'),'shutdown-sched
 const status=()=>({running:Boolean(active),kind:active?.kind||null,cancelling:Boolean(active?.controller.signal.aborted),progress:active?.progress||null});
 function broadcast(name,payload){if(win&&!win.isDestroyed())win.webContents.send('halo:event',{name,payload});}
 function statusChanged(){broadcast('task-status',status());}
+function errorMessage(value){return value instanceof Error?value.message:String(value??'未知错误');}
+function fatal(kind,error){
+  logger.error(kind,error);
+  // An idle crash must not kill the user's window for nothing; a crash while a
+  // task runs leaves files half written, so stop and ask for a history re-check.
+  if(!active)return;
+  try{dialog.showErrorBox('HALO 遇到错误','任务可能未完整结束，请重新打开后核验历史记录。\n\n'+errorMessage(error));}catch{}
+  app.exit(1);
+}
+process.on('uncaughtException',error=>fatal('未捕获的异常',error));
+process.on('unhandledRejection',error=>fatal('未处理的 Promise 拒绝',error));
+app.on('render-process-gone',(event,contents,details)=>{
+  logger.error('界面进程异常退出：'+String(details?.reason||'unknown')+'，退出码 '+String(details?.exitCode??'未知'));
+  if(!win||win.isDestroyed())return;
+  dialog.showMessageBox(win,{type:'error',title:'HALO 界面已停止',
+    message:'界面进程异常退出：'+String(details?.reason||'未知原因')+'。可以重新加载界面，也可以退出应用。',
+    buttons:['重新加载','退出'],defaultId:0,cancelId:1,noLink:true})
+    .then(result=>{
+      if(result.response===0){if(win&&!win.isDestroyed())win.reload();}
+      else quitSafely();
+    })
+    .catch(error=>logger.error('重新加载界面失败',error));
+});
+// 'unresponsive' lives on webContents, not on app: watch every webContents.
+app.on('web-contents-created',(event,contents)=>{
+  contents.on('unresponsive',()=>logger.warn('HALO 界面暂时无响应'));
+  contents.on('responsive',()=>logger.info('HALO 界面已恢复响应'));
+});
+// ffmpeg may legitimately die on a bad media file: log it, never interrupt the user.
+app.on('child-process-gone',(event,details)=>{
+  logger.warn('子进程退出：'+String(details?.type||'unknown')+' '+String(details?.serviceName||'')+' '+String(details?.reason||'unknown'));
+});
 async function task(kind,fn){
   if(active)throw Error('已有任务正在执行：'+active.kind);
   const controller=new AbortController();
@@ -312,6 +347,8 @@ app.whenReady().then(async()=>{
   history=new History(app.getPath('userData'));
   video=new Video(app.getPath('userData'));
   split=new SplitService(app.getPath('userData'),video);
+  // Recovery must never block startup: the reported runs are a bonus, not a gate.
+  try{await history.recoverRestoreRuns();}catch(error){logger.error('恢复日志回收失败',error);}
   await video.recover();
   await split.recover();
   protocol.handle('halo',async request=>{
