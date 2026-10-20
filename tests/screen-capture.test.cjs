@@ -70,14 +70,16 @@ test('daily export falls back to a runnable local FFmpeg when the bundled binary
   const dayDir=path.join(root,'2026-10-21');await fs.mkdir(dayDir);
   await fs.writeFile(path.join(dayDir,'screen_20261021_101500_000_a1b2c3d4.png'),png);
   let usedBinary=null;
-  const capture=service(root,{resolveBinaries:async()=>({ffmpeg:'/broken/ffmpeg'}),ffmpegSearchPath:['/system/bin'],
+  const bundledBinary=path.join('/broken','ffmpeg');
+  const systemBinary=path.join('/system/bin',process.platform==='win32'?'ffmpeg.exe':'ffmpeg');
+  const capture=service(root,{resolveBinaries:async()=>({ffmpeg:bundledBinary}),ffmpegSearchPath:['/system/bin'],
     execBinary:async(file,args)=>{
-      if(args[0]==='-version'){if(file==='/broken/ffmpeg')throw Error('binary cannot start');return {output:'ffmpeg'};}
+      if(args[0]==='-version'){if(file===bundledBinary)throw Error('binary cannot start');return {output:'ffmpeg'};}
       usedBinary=file;await fs.writeFile(args.at(-1),Buffer.alloc(128,1));return {output:''};
     }});
   await capture.rememberRoot(root);
   const result=await capture.exportDay(root,'2026-10-21',5,null);
-  assert.equal(usedBinary,'/system/bin/ffmpeg');assert.equal(result.frames,1);
+  assert.equal(usedBinary,systemBinary);assert.equal(result.frames,1);
 });
 
 test('capture platform support is limited to Windows and macOS',()=>{
