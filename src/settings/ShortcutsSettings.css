@@ -1,0 +1,140 @@
+.shortcuts-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 12px;
+  margin-bottom: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  color: var(--color-text-tertiary);
+}
+
+.shortcuts-search svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.shortcuts-search input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: var(--text-base);
+  color: var(--color-text);
+  user-select: text;
+  cursor: text;
+}
+
+.shortcuts-search input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+/* ---- Command / Keybinding table ---- */
+
+.shortcuts-table {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  overflow: hidden;
+}
+
+.shortcuts-table-header,
+.shortcuts-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 46%) 32px;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+}
+
+.shortcuts-table-header {
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.shortcuts-row + .shortcuts-row {
+  border-top: 1px solid var(--color-border);
+}
+
+.shortcuts-command-name {
+  font-size: var(--text-base);
+}
+
+.shortcuts-command-description {
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.shortcuts-binding {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.shortcuts-chip {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-hover);
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  letter-spacing: 0.03em;
+  transition: background var(--transition-fast);
+}
+
+.shortcuts-chip:hover {
+  background: var(--color-bg-active);
+}
+
+.shortcuts-chip[data-recording="true"] {
+  background: transparent;
+  outline: 1.5px solid var(--color-accent);
+  color: var(--color-text-secondary);
+}
+
+.shortcuts-unassigned {
+  font-size: var(--text-base);
+  color: var(--color-text-tertiary);
+}
+
+.shortcuts-unassigned:hover {
+  color: var(--color-text-secondary);
+}
+
+/* Edit / remove affordances appear on row hover. */
+.shortcuts-row-action {
+  width: 24px;
+  height: 24px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.shortcuts-row-action svg {
+  width: 14px;
+  height: 14px;
+}
+
+.shortcuts-row:hover .shortcuts-row-action {
+  opacity: 1;
+}
+
+.shortcuts-empty {
+  padding: var(--space-4);
+  font-size: var(--text-base);
+  color: var(--color-text-tertiary);
+}
+
+.shortcuts-reset {
+  margin-top: var(--space-3);
+  font-size: var(--text-base);
+  color: var(--color-text-secondary);
+}
+
+.shortcuts-reset:hover {
+  color: var(--color-text);
+}
