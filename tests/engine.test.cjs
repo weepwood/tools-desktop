@@ -168,3 +168,14 @@ test('stale fingerprint rejects same-sized changed files',async t=>{
       expectedScanFingerprint:first.summary.fingerprint},signal,()=>{},history),/重新扫描/);
   assert.deepEqual(await fs.readFile(file),changed);
 });
+
+test('malformed journal does not hide unrelated completed sessions',async t=>{
+  const {history,file,request}=await fixture(t);
+  const signal=new AbortController().signal;
+  const washed=await wash({...request,mode:'recoverable',verificationMode:'full',skipAlreadyWashed:true},signal,()=>{},history);
+  await fs.writeFile(path.join(history.journals,'bad-journal.jsonl'),'{oops}\n');
+  const rows=await history.load();
+  assert(rows.some(x=>x.id===washed.id));
+  assert.equal(history.warnings.length,1);
+  assert.match(history.warnings[0],/bad-journal/);
+});

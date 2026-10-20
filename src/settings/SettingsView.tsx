@@ -253,6 +253,16 @@ function AppearanceSettings() {
 
 function AdvancedSettings() {
   const { reset } = useSettings();
+  const [storageWarnings, setStorageWarnings] = useState<string[] | null>(null);
+  useEffect(() => {
+    let active = true;
+    if (window.xima) {
+      void window.xima.invoke<string[]>("storage_diagnostics").then(warnings => {
+        if (active) setStorageWarnings(warnings);
+      }).catch(error => { if (active) setStorageWarnings(["诊断失败：" + String(error)]); });
+    }
+    return () => { active = false; };
+  }, []);
   const [resetting, setResetting] = useState(false);
   const [error, setError] = useState("");
 
@@ -270,6 +280,16 @@ function AdvancedSettings() {
 
   return (
     <>
+      {storageWarnings && (
+        <Group label="历史记录完整性">
+          <Row title="本地诊断" description="只检查历史记录格式，不修改或删除原始记录">
+            <span>{storageWarnings.length ? "发现 " + storageWarnings.length + " 项异常" : "未发现解析异常"}</span>
+          </Row>
+          {storageWarnings.map((message, index) => (
+            <p role="alert" key={index}>{message}</p>
+          ))}
+        </Group>
+      )}
       <Group>
         <Row title="恢复记录" description="历史、任务日志和最近一次历史备份保存在本机应用数据目录。历史不会自动删除。">
           <span>本机保存</span>
