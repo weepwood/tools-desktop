@@ -34,6 +34,8 @@ jobs:
           node -e "const fs=require('fs'); for(const m of ['ffmpeg-static','ffprobe-static']) { const v=require(m); const p=typeof v==='string'?v:v.path; if(!p||!fs.existsSync(p)) throw Error(m+' binary missing: '+p); console.log(m,p); }"
       - name: Real FFmpeg screenshot smoke test
         run: node --test tests/video.smoke.cjs
+      - name: Real FFmpeg size-based video splitting smoke test
+        run: node --test tests/split.smoke.cjs
       - run: npm run dist:win
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
