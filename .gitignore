@@ -5,3 +5,8 @@ release/
 *.tmp
 .env
 .DS_Store
+
+# Project-internal memory / personal data — never publish
+.workbuddy/
+# Local verification harness with hardcoded absolute paths
+.verify-halo.cjs
